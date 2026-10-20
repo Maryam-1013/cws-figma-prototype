@@ -91,7 +91,7 @@ svg{display:block}
 #pins{position:absolute;inset:0;z-index:80;pointer-events:none}
 .pin{position:absolute;width:64px;height:64px;margin:-64px 0 0 0;border-radius:50% 50% 50% 6px;background:var(--blue);color:#fff;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:auto;box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 4px #fff;transition:transform .15s;animation:popIn .3s cubic-bezier(.2,1.4,.4,1)}
 .pin:hover,.pin.on{transform:scale(1.15)}
-.pin.res{background:#8A96A1}
+.pin.res{background:var(--ok)}
 .pin.new{background:#0B2A44}
 .cmt-pop{position:fixed;z-index:1100;width:300px;background:#fff;color:#1B2530;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4);padding:14px;font-size:13px}
 .cmt-pop[hidden]{display:none}
@@ -106,6 +106,28 @@ svg{display:block}
 .cmt-pop .msg small{color:#8A96A1;margin-left:4px}
 .cmt-pop .msg p{margin-top:3px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
 .cmt-pop .thread{max-height:220px;overflow-y:auto}
+.cp-tabs{display:flex;gap:4px;margin-top:14px;background:#F1F4F7;border-radius:9px;padding:3px}
+.cp-tabs button{flex:1;padding:7px;border-radius:7px;font-size:12.5px;font-weight:600;color:#5E6A75}
+.cp-tabs button.on{background:#fff;color:#0B2A44;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.lg{padding:10px 4px 10px 12px;border-left:3px solid #D3DBE2;margin:10px 0}
+.lg.del{border-color:var(--bad)} .lg.edit{border-color:#E0A100} .lg.done{border-color:var(--ok)}
+.lg-h{line-height:1.4}.lg-h b{font-weight:600}
+.lg-m{font-size:11px;color:#8A96A1;margin-top:2px}
+.lg-t,.lg-b,.lg-a{margin-top:5px;color:#33404C;line-height:1.4;word-wrap:break-word}
+.lg-b{text-decoration:line-through;color:#8A96A1}
+.lg-a:before{content:"→ ";color:#8A96A1}
+.cp-item{cursor:pointer}
+.cp-item .li-acts{display:flex;gap:10px;margin-top:8px;font-size:11.5px}
+.cp-item .li-acts button{color:var(--blue);font-weight:600}
+.cp-item .li-acts button.del,.cmt-pop .macts .del{color:var(--bad)}
+.li-acts button.armed,.cmt-pop button.armed{color:#fff !important;background:var(--bad);border-radius:6px;padding:0 6px}
+.done-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;background:#E3F6EA;color:var(--ok);font-size:10.5px;font-weight:700;vertical-align:1px}
+.cp-item.res{opacity:.7}
+.cp-item.res .pn{background:var(--ok)}
+.cmt-pop .mh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.cmt-pop .macts{display:flex;gap:10px;font-size:11.5px;flex:none}
+.cmt-pop .macts button{color:var(--blue);font-weight:600}
+.cmt-pop .done-btn{color:var(--ok) !important;border-color:#BFE6CC !important;font-weight:600}
 .cmt-pop .acts{display:flex;gap:12px;font-size:12px}
 .cmt-pop .acts button{color:var(--blue)}
 .cmt-pop .acts button.del{color:var(--bad)}
@@ -580,8 +602,10 @@ svg{display:block}
   <label class="cp-name">Your name<input id="cmtName" placeholder="e.g. Sarah, C&amp;W" maxlength="40"></label>
   <button id="cmtAdd" class="cp-add">＋ Add a comment</button>
   <div class="cp-hint" id="cmtHint">Click anywhere on the kiosk screen to place your comment. Press Esc to cancel.</div>
-  <label class="cp-check"><input type="checkbox" id="cmtShowResolved"> Show resolved</label>
+  <div class="cp-tabs"><button data-ct="list" class="on">Comments</button><button data-ct="log">Activity log</button></div>
+  <label class="cp-check" id="cpDoneWrap"><input type="checkbox" id="cmtShowResolved"> Show done comments</label>
   <div id="cmtList" class="cp-list"></div>
+  <div id="cmtLog" class="cp-list" hidden></div>
   <div class="cp-foot">
     <button id="cmtSave" class="cp-pri">Download copy with comments</button>
     <button id="cmtImport">Import comments from a file…</button>
@@ -1870,7 +1894,7 @@ $('#hwIdle').addEventListener('click', idlePrompt);
    into a downloaded copy so they can travel with the file.
    ========================================================= */
 const CM_KEY = 'cws-kiosk-comments', CM_NAME = 'cws-kiosk-commenter';
-const CM = {list:[], placing:false, open:null, showResolved:false};
+const CM = {list:[], log:[], view:'list', placing:false, open:null, showResolved:false};
 const esc = t => String(t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : new Date(t).toLocaleDateString('en-GB', {day:'numeric', month:'short'}); };
 function cmLoad(){
@@ -1889,6 +1913,7 @@ function cmSave(){ if (!REMOTE) try { localStorage.setItem(CM_KEY, JSON.stringif
 // Deployed with the /api/comments endpoint (e.g. on Vercel): comments are shared through the server instead of this browser.
 let REMOTE = false;
 async function cmApi(body){
+  body.by = cmName() || 'Guest';
   try {
     const r = await fetch('/api/comments', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     const data = await r.json().catch(() => ({}));
@@ -1899,6 +1924,36 @@ async function cmApi(body){
 async function cmPull(){
   if (document.hidden) return;
   try { const r = await fetch('/api/comments', {cache:'no-store'}); if (r.ok){ CM.list = await r.json(); cmRender(); } } catch (e) {}
+  if (CM.view === 'log') cmPullLog();
+}
+/* ---- activity log: who added, edited, replied, marked done or deleted what ---- */
+const CM_LOG_KEY = 'cws-kiosk-log';
+async function cmPullLog(){
+  try { const r = await fetch('/api/comments?log=1', {cache:'no-store'}); if (r.ok){ CM.log = await r.json(); cmRenderLog(); } } catch (e) {}
+}
+function cmLogLocal(entry){
+  if (REMOTE) return;   // the server keeps the shared log
+  CM.log.unshift({time:Date.now(), ...entry});
+  CM.log = CM.log.slice(0, 500);
+  try { localStorage.setItem(CM_LOG_KEY, JSON.stringify(CM.log)); } catch (e) {}
+  if (CM.view === 'log') cmRenderLog();
+}
+function cmRenderLog(){
+  const when = t => new Date(t).toLocaleString('en-GB', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  const tone = a => /deleted/.test(a) ? 'del' : /edited/.test(a) ? 'edit' : /done|reopened/.test(a) ? 'done' : '';
+  $('#cmtLog').innerHTML = CM.log.length ? CM.log.map(e => `<div class="lg ${tone(e.action)}">
+      <div class="lg-h"><b>${esc(e.by)}</b> ${esc(e.action)}${e.author && e.author !== e.by ? ` from ${esc(e.author)}` : ''}</div>
+      <div class="lg-m">${when(e.time)}${e.screenName ? ` · ${esc(e.screenName)}` : ''}</div>
+      ${e.before !== undefined ? `<div class="lg-b">${esc(e.before)}</div><div class="lg-a">${esc(e.after)}</div>` : e.text ? `<div class="lg-t">“${esc(e.text)}”</div>` : ''}
+      ${e.replies && e.replies.length ? `<div class="lg-m">Also removed ${e.replies.length} repl${e.replies.length > 1 ? 'ies' : 'y'}: ${e.replies.map(r => `${esc(r.author)}: “${esc(r.text)}”`).join(' · ')}</div>` : ''}
+    </div>`).join('')
+    : '<div class="cp-empty">No activity yet. Every comment, edit, reply, “done” and delete will be listed here with who did it.</div>';
+}
+function cmView(v){
+  CM.view = v;
+  document.querySelectorAll('.cp-tabs button').forEach(b => b.classList.toggle('on', b.dataset.ct === v));
+  $('#cmtList').hidden = v !== 'list'; $('#cpDoneWrap').hidden = v !== 'list'; $('#cmtLog').hidden = v !== 'log';
+  if (v === 'log'){ cmRenderLog(); if (REMOTE) cmPullLog(); }
 }
 function cmName(){ return ($('#cmtName').value || '').trim(); }
 function cmRender(){
@@ -1910,9 +1965,10 @@ function cmRender(){
   const groups = {};
   vis.forEach(c => (groups[c.screenName] = groups[c.screenName] || []).push(c));
   $('#cmtList').innerHTML = vis.length ? Object.keys(groups).map(g => `<div class="cp-grp">${esc(g)}</div>` + groups[g].map(c =>
-    `<button class="cp-item ${c.resolved ? 'res' : ''}" data-cid="${c.id}"><span class="pn">${CM.list.indexOf(c) + 1}</span><span class="pb">
-      <span class="pa">${esc(c.author)}<span class="pt">${ago(c.time)}${c.resolved ? ' · resolved' : ''}</span></span>
-      <div class="px">${esc(c.text)}</div>${c.replies.length ? `<div class="pr">${c.replies.length} repl${c.replies.length > 1 ? 'ies' : 'y'}</div>` : ''}${c.screen !== cur ? `<div class="pr" style="color:#8A96A1">Go to “${esc(c.screenName)}” to see the pin</div>` : ''}</span></button>`).join('')).join('')
+    `<div class="cp-item ${c.resolved ? 'res' : ''}" data-cid="${c.id}" role="button" tabindex="0"><span class="pn">${c.resolved ? '✓' : CM.list.indexOf(c) + 1}</span><span class="pb">
+      <span class="pa">${esc(c.author)}<span class="pt">${ago(c.time)}${c.edited ? ' · edited' : ''}</span>${c.resolved ? '<span class="done-tag">Done</span>' : ''}</span>
+      <div class="px">${esc(c.text)}</div>${c.replies.length ? `<div class="pr">${c.replies.length} repl${c.replies.length > 1 ? 'ies' : 'y'}</div>` : ''}${c.screen !== cur ? `<div class="pr" style="color:#8A96A1">On “${esc(c.screenName)}”</div>` : ''}
+      <span class="li-acts"><button data-la="done">${c.resolved ? 'Reopen' : '✓ Mark as done'}</button><button data-la="edit">Edit</button><button data-la="del" class="del">Delete</button></span></span></div>`).join('')).join('')
     : `<div class="cp-empty">No comments yet.<br>Click “Add a comment”, then click on the screen.</div>`;
 }
 // On the published link, comments use claude.ai's shared comment store, so everyone with access sees them.
@@ -1948,15 +2004,60 @@ function cmCompose(x, y){
   CM.draft = {x, y};
   ($('#cpName') || $('#cpText')).focus();
 }
-function cmOpen(id){
+function cmOpen(id, edit=null){
   const c = CM.list.find(k => k.id === id); if (!c) return;
-  CM.open = id; cmRender();
-  const msg = m => `<div class="msg"><b>${esc(m.author)}</b><small>${ago(m.time)}</small><p>${esc(m.text)}</p></div>`;
-  cmShowPop(c.x, c.y, `<div class="ct"><span>#${CM.list.indexOf(c) + 1} · ${esc(c.screenName)}</span><button data-c="close" style="color:#8A96A1">✕</button></div>
-    <div class="thread">${msg(c)}${c.replies.map(msg).join('')}</div>
-    ${cmName() ? '' : '<input id="cpName" placeholder="Your name" maxlength="40">'}
-    <textarea id="cpText" placeholder="Reply…" style="min-height:50px"></textarea>
-    <div class="cp-row" style="justify-content:space-between;align-items:center"><span class="acts"><button data-c="resolve">${c.resolved ? 'Reopen' : 'Resolve'}</button><button data-c="delete" class="del">Delete</button></span><button data-c="reply" class="pri">Reply</button></div>`);
+  CM.open = id; CM.edit = edit; cmRender();
+  const msg = (m, i) => edit === i
+    ? `<div class="msg"><b>${esc(m.author)}</b><textarea id="cpEdit" maxlength="2000">${esc(m.text)}</textarea>
+        <div class="cp-row"><button data-c="editcancel">Cancel</button><button data-c="editsave" data-i="${i}" class="pri">Save</button></div></div>`
+    : `<div class="msg"><div class="mh"><span><b>${esc(m.author)}</b><small>${ago(m.time)}${m.edited ? ' · edited' : ''}</small></span>
+        <span class="macts"><button data-c="edit" data-i="${i}">Edit</button><button data-c="${i < 0 ? 'delete' : 'delreply'}" data-i="${i}" class="del">Delete</button></span></div><p>${esc(m.text)}</p></div>`;
+  cmShowPop(c.x, c.y, `<div class="ct"><span>#${CM.list.indexOf(c) + 1} · ${esc(c.screenName)}${c.resolved ? ' <span class="done-tag">Done</span>' : ''}</span><button data-c="close" style="color:#8A96A1">✕</button></div>
+    <div class="thread">${msg(c, -1)}${c.replies.map(msg).join('')}</div>
+    ${edit !== null ? '' : `${cmName() ? '' : '<input id="cpName" placeholder="Your name" maxlength="40">'}
+    <textarea id="cpText" placeholder="Reply…" style="min-height:50px" maxlength="2000"></textarea>
+    <div class="cp-row" style="justify-content:space-between;align-items:center"><button data-c="resolve" class="${c.resolved ? '' : 'done-btn'}">${c.resolved ? 'Reopen' : '✓ Mark as done'}</button><button data-c="reply" class="pri">Reply</button></div>`}`);
+  const ed = $('#cpEdit'); if (ed){ ed.focus(); ed.setSelectionRange(ed.value.length, ed.value.length); }
+}
+// Destructive actions need a second click within 3 seconds
+function cmArm(btn, fn){
+  if (btn.dataset.armed){ fn(); return; }
+  btn.dataset.armed = '1'; const was = btn.textContent; btn.textContent = 'Click again to delete'; btn.classList.add('armed');
+  setTimeout(() => { if (btn.isConnected){ delete btn.dataset.armed; btn.textContent = was; btn.classList.remove('armed'); } }, 3000);
+}
+// One place for every change, so local and shared (server) storage stay in step
+function cmAct(kind, c, extra={}){
+  const by = cmName() || 'Guest', where = {id:c.id, screenName:c.screenName};
+  if (kind === 'resolve'){
+    c.resolved = !c.resolved; cmSave();
+    cmLogLocal({by, action:c.resolved ? 'marked as done' : 'reopened', ...where, text:c.text});
+    if (REMOTE) cmApi({action:'resolve', id:c.id, resolved:c.resolved});
+  }
+  if (kind === 'delete'){
+    CM.list = CM.list.filter(k => k !== c); if (CM.open === c.id) cmClosePop(); cmSave();
+    cmLogLocal({by, action:'deleted a comment', ...where, author:c.author, text:c.text, replies:c.replies});
+    if (REMOTE) cmApi({action:'delete', id:c.id});
+  }
+  if (kind === 'edit'){
+    const before = c.text; c.text = extra.text; c.edited = true; cmSave();
+    cmLogLocal({by, action:'edited a comment', ...where, author:c.author, before, after:extra.text});
+    if (REMOTE) cmApi({action:'edit', id:c.id, text:extra.text});
+  }
+  if (kind === 'editReply'){
+    const r = c.replies[extra.i], before = r.text; r.text = extra.text; r.edited = true; cmSave();
+    cmLogLocal({by, action:'edited a reply', ...where, author:r.author, before, after:extra.text});
+    if (REMOTE) cmApi({action:'editReply', id:c.id, index:extra.i, text:extra.text});
+  }
+  if (kind === 'deleteReply'){
+    const [r] = c.replies.splice(extra.i, 1); cmSave();
+    cmLogLocal({by, action:'deleted a reply', ...where, author:r.author, text:r.text});
+    if (REMOTE) cmApi({action:'deleteReply', id:c.id, index:extra.i});
+  }
+  if (kind === 'reply'){
+    c.replies.push({author:extra.author, text:extra.text, time:Date.now()}); cmSave();
+    cmLogLocal({by, action:'replied', ...where, text:extra.text});
+    if (REMOTE) cmApi({action:'reply', id:c.id, author:extra.author, text:extra.text});
+  }
 }
 $('#cmtPop').addEventListener('click', e => {
   const b = e.target.closest('[data-c]'); if (!b) return;
@@ -1971,18 +2072,22 @@ $('#cmtPop').addEventListener('click', e => {
       x:CM.draft.x, y:CM.draft.y, author, text, time:Date.now(), replies:[], resolved:false};
     CM.list.push(item);
     $('#cmtPop').hidden = true; cmSave();
+    cmLogLocal({by:author, action:'added a comment', id:item.id, screenName:item.screenName, text});
     if (REMOTE) cmApi({action:'create', id:item.id, comment:item});
     return;
   }
   const c = CM.list.find(k => k.id === CM.open); if (!c) return;
-  if (a === 'reply'){
-    if (!text) return $('#cpText').focus();
-    c.replies.push({author, text, time:Date.now()}); cmSave();
-    if (REMOTE) cmApi({action:'reply', id:c.id, author, text});
-    return cmOpen(c.id);
+  const i = Number(b.dataset.i);
+  if (a === 'reply'){ if (!text) return $('#cpText').focus(); cmAct('reply', c, {author, text}); return cmOpen(c.id); }
+  if (a === 'resolve'){ cmAct('resolve', c); return cmOpen(c.id); }
+  if (a === 'edit') return cmOpen(c.id, i);
+  if (a === 'editcancel') return cmOpen(c.id);
+  if (a === 'editsave'){
+    const t = ($('#cpEdit').value || '').trim(); if (!t) return $('#cpEdit').focus();
+    cmAct(i < 0 ? 'edit' : 'editReply', c, {i, text:t}); return cmOpen(c.id);
   }
-  if (a === 'resolve'){ c.resolved = !c.resolved; cmSave(); if (REMOTE) cmApi({action:'resolve', id:c.id, resolved:c.resolved}); return cmClosePop(); }
-  if (a === 'delete'){ CM.list = CM.list.filter(k => k !== c); cmSave(); if (REMOTE) cmApi({action:'delete', id:c.id}); return cmClosePop(); }
+  if (a === 'delete') return cmArm(b, () => { cmAct('delete', c); cmClosePop(); });
+  if (a === 'delreply') return cmArm(b, () => { cmAct('deleteReply', c, {i}); cmOpen(c.id); });
 });
 // placing a pin: capture clicks on the kiosk before they reach the screen's buttons
 kiosk.addEventListener('click', e => {
@@ -1999,7 +2104,16 @@ kiosk.addEventListener('click', e => {
   cmCompose(Math.round((e.clientX - r.left) / s), Math.round((e.clientY - r.top) / s));
 }, true);
 $('#pins').addEventListener('click', e => { const p = e.target.closest('.pin[data-cid]'); if (p){ e.stopPropagation(); cmOpen(p.dataset.cid); } });
-$('#cmtList').addEventListener('click', e => { const it = e.target.closest('.cp-item'); if (!it) return; const c = CM.list.find(k => k.id === it.dataset.cid); if (c && c.screen === cur) cmOpen(c.id); });
+$('#cmtList').addEventListener('click', e => {
+  const it = e.target.closest('.cp-item'); if (!it) return;
+  const c = CM.list.find(k => k.id === it.dataset.cid); if (!c) return;
+  const la = e.target.closest('[data-la]');
+  if (!la) return cmOpen(c.id);
+  const act = la.dataset.la;
+  if (act === 'done') return cmAct('resolve', c);
+  if (act === 'edit') return cmOpen(c.id, -1);
+  if (act === 'del') return cmArm(la, () => cmAct('delete', c));
+});
 function cmTogglePanel(show){ $('#cmtPanel').classList.toggle('hidden', !show); $('#cmtToggle').classList.toggle('on', show); if (!show){ cmSetPlacing(false); cmClosePop(); } fit(); }
 $('#cmtToggle').addEventListener('click', () => HOSTED ? cmSetPlacing(!CM.placing) : cmTogglePanel($('#cmtPanel').classList.contains('hidden')));
 if (HOSTED){
@@ -2033,6 +2147,8 @@ $('#cmtFile').addEventListener('change', async e => {
   toast(`Imported ${CM.list.length - before} new comment(s)`);
 });
 cmLoad();
+try { CM.log = JSON.parse(localStorage.getItem(CM_LOG_KEY) || '[]'); } catch (e) {}
+document.querySelectorAll('.cp-tabs button').forEach(b => b.addEventListener('click', () => cmView(b.dataset.ct)));
 if (!HOSTED && /^https?:$/.test(location.protocol)){
   fetch('/api/comments', {cache:'no-store'})
     .then(r => r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : null)
