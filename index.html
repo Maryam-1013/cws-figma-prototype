@@ -1,0 +1,2093 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CWS Kiosk Prototype</title>
+<script id="cmtData" type="application/json">[]</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#006BB6; --blue-d:#00548F; --blue-l:#D7EAF7; --blue-xl:#EEF6FC;
+  --ink:#000; --muted:#757575; --grey:#93999A; --line:#E5E5E5;
+  --ok:#0A8A3E; --bad:#C62828; --warn:#A85A00;
+  --font:'SariWeb','Fira Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#161B22;font-family:var(--font);color:var(--ink);overflow:auto;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg{display:block}
+
+/* ---------- presenter layout ---------- */
+#panel{position:fixed;top:0;right:0;bottom:0;width:330px;z-index:1000;background:#0E1319;color:#C9D3DD;padding:24px 22px;overflow-y:auto;font-size:13px;border-left:1px solid #222A33;box-shadow:-20px 0 50px rgba(0,0,0,.35)}
+#panel.hidden{display:none}
+#panel h1{font-size:17px;color:#fff;font-weight:600;letter-spacing:.2px}
+#panel .sub{color:#7D8A97;margin-top:4px}
+#panel h3{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:#7D8A97;margin:22px 0 10px;font-weight:600}
+#panel .now{margin-top:16px;background:#17202A;border:1px solid #26313D;border-radius:10px;padding:10px 12px}
+#panel .now b{color:#fff;font-weight:600}
+.jl{display:grid;gap:6px}
+.jl button{text-align:left;padding:9px 12px;border-radius:8px;background:#17202A;border:1px solid #26313D;color:#DCE4EC;font-size:13px}
+.jl button:hover{border-color:var(--blue);background:#14273A}
+.seg-row{margin-bottom:12px}
+.seg-row label{display:block;color:#9AA7B4;margin-bottom:6px}
+.seg{display:flex;background:#17202A;border:1px solid #26313D;border-radius:8px;padding:3px;gap:3px}
+.seg button{flex:1;padding:6px 4px;border-radius:6px;font-size:12px;color:#AEB9C4}
+.seg button.on{background:var(--blue);color:#fff}
+.hw{display:grid;gap:6px}
+.hw button{padding:9px 12px;border-radius:8px;border:1px dashed #3A4757;color:#DCE4EC;text-align:left}
+.hw button.armed{border-style:solid;border-color:#E0A100;color:#FFD166;background:#2A2410}
+#panel .ptabs{display:flex;gap:4px;margin-top:16px;background:#17202A;border:1px solid #26313D;border-radius:10px;padding:4px}
+#panel .ptabs button{flex:1;padding:8px 4px;border-radius:7px;color:#AEB9C4;font-size:12.5px;font-weight:500}
+#panel .ptabs button.on{background:#26313D;color:#fff}
+#panel .ptab{display:none}
+#panel .ptab.on{display:block}
+#panel .badge{display:inline-block;min-width:18px;padding:1px 5px;border-radius:9px;background:#C62828;color:#fff;font-size:11px;margin-left:3px}
+#panel .badge:empty{display:none}
+#panel .err-row{margin-top:14px;padding:12px;border:1px solid #26313D;border-radius:10px;background:#121A22}
+#panel .err-row label{display:block;color:#DCE4EC;margin-bottom:8px;font-weight:500}
+#panel .err-row label small{display:block;color:#7D8A97;font-weight:400;margin-top:2px}
+#panel .err-row.active{border-color:#C62828;background:#221416}
+#panel .tip{color:#7D8A97;margin-top:6px;line-height:1.45;font-size:12px}
+/* comments */
+.cmt-toggle{position:fixed;left:14px;top:14px;z-index:1001;display:flex;align-items:center;gap:8px;background:#fff;color:#0B2A44;border-radius:22px;padding:9px 16px 9px 12px;font-size:13px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.cmt-toggle svg{width:18px;height:18px;color:var(--blue)}
+.cmt-toggle.on{background:var(--blue);color:#fff}.cmt-toggle.on svg{color:#fff}
+.cmt-n{background:var(--blue);color:#fff;border-radius:10px;padding:0 7px;font-size:11px;line-height:18px}
+.cmt-n:empty{display:none}
+.cmt-toggle.on .cmt-n{background:#fff;color:var(--blue)}
+#cmtPanel{position:fixed;left:0;top:0;bottom:0;width:340px;z-index:1000;background:#fff;color:#1B2530;box-shadow:20px 0 50px rgba(0,0,0,.35);display:flex;flex-direction:column;padding:62px 18px 16px;font-size:13px}
+#cmtPanel.hidden{display:none}
+.cp-head{display:flex;justify-content:space-between;align-items:center;font-size:16px;margin-bottom:12px}
+.cp-head button{color:#7D8A97;font-size:16px}
+.cp-name{display:block;font-size:12px;color:#5E6A75}
+.cp-name input,.cmt-pop input,.cmt-pop textarea{display:block;width:100%;margin-top:4px;border:1px solid #D3DBE2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;color:#1B2530;outline:none}
+.cp-name input:focus,.cmt-pop input:focus,.cmt-pop textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,107,182,.15)}
+.cp-add{margin-top:12px;width:100%;padding:10px;border-radius:8px;background:var(--blue);color:#fff;font-weight:600}
+.cp-add.on{background:#0B2A44}
+.cp-hint{display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#FFF6E0;color:#7A5300;font-size:12px}
+.placing .cp-hint{display:block}
+.cp-check{display:flex;align-items:center;gap:6px;margin-top:12px;color:#5E6A75;font-size:12px}
+.cp-list{flex:1;overflow-y:auto;margin-top:10px;border-top:1px solid #EEF1F3}
+.cp-empty{color:#8A96A1;padding:18px 4px;text-align:center}
+.cp-grp{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#8A96A1;margin:14px 0 6px}
+.cp-item{display:flex;gap:10px;width:100%;text-align:left;padding:10px;border-radius:10px;border:1px solid #EEF1F3;margin-bottom:8px;background:#fff}
+.cp-item:hover{border-color:var(--blue)}
+.cp-item.res{opacity:.55}
+.cp-item .pn{flex:none;width:24px;height:24px;border-radius:50% 50% 50% 4px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.cp-item .pb{min-width:0}
+.cp-item .pa{font-weight:600}
+.cp-item .pt{color:#8A96A1;font-size:11px;margin-left:4px;font-weight:400}
+.cp-item .px{margin-top:3px;color:#33404C;line-height:1.4;word-wrap:break-word}
+.cp-item .pr{margin-top:4px;color:var(--blue);font-size:11px}
+.cp-foot{border-top:1px solid #EEF1F3;padding-top:12px;display:grid;gap:8px}
+.cp-foot button{padding:9px;border-radius:8px;border:1px solid #D3DBE2;font-weight:500}
+.cp-foot .cp-pri{background:#0B2A44;color:#fff;border-color:#0B2A44}
+.cp-note{font-size:11px;color:#8A96A1;line-height:1.45}
+.placing #kiosk,.placing #kiosk *{cursor:crosshair !important}
+#pins{position:absolute;inset:0;z-index:80;pointer-events:none}
+.pin{position:absolute;width:64px;height:64px;margin:-64px 0 0 0;border-radius:50% 50% 50% 6px;background:var(--blue);color:#fff;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:auto;box-shadow:0 8px 20px rgba(0,0,0,.35),0 0 0 4px #fff;transition:transform .15s;animation:popIn .3s cubic-bezier(.2,1.4,.4,1)}
+.pin:hover,.pin.on{transform:scale(1.15)}
+.pin.res{background:#8A96A1}
+.pin.new{background:#0B2A44}
+.cmt-pop{position:fixed;z-index:1100;width:300px;background:#fff;color:#1B2530;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.4);padding:14px;font-size:13px}
+.cmt-pop[hidden]{display:none}
+.cmt-pop .ct{font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.cmt-pop .ct small{color:#8A96A1;font-weight:400}
+.cmt-pop textarea{min-height:70px;resize:vertical;margin-top:8px}
+.cmt-pop .cp-row{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.cmt-pop .cp-row button{padding:7px 12px;border-radius:8px;border:1px solid #D3DBE2;font-weight:500}
+.cmt-pop .cp-row .pri{background:var(--blue);color:#fff;border-color:var(--blue)}
+.cmt-pop .msg{padding:8px 0;border-bottom:1px solid #EEF1F3}
+.cmt-pop .msg b{font-weight:600}
+.cmt-pop .msg small{color:#8A96A1;margin-left:4px}
+.cmt-pop .msg p{margin-top:3px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+.cmt-pop .thread{max-height:220px;overflow-y:auto}
+.cmt-pop .acts{display:flex;gap:12px;font-size:12px}
+.cmt-pop .acts button{color:var(--blue)}
+.cmt-pop .acts button.del{color:var(--bad)}
+#panel .foot{margin-top:24px;color:#6E7B88;line-height:1.55;border-top:1px solid #222A33;padding-top:14px}
+#panel kbd{background:#1E2731;border:1px solid #33404D;border-radius:4px;padding:0 5px;color:#DCE4EC;font-family:inherit}
+#stageArea{position:relative;width:1080px;height:1920px}
+#wrap{position:relative;width:1080px;height:1920px;overflow:hidden}
+#kiosk{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:0 0;background:#fff;overflow:hidden;user-select:none;-webkit-user-select:none}
+#panelToggle{position:fixed;top:14px;right:14px;z-index:999;background:#17202A;color:#C9D3DD;border:1px solid #26313D;border-radius:8px;padding:7px 11px;font-size:12px}
+
+/* ---------- kiosk background ---------- */
+.blob{position:absolute;width:333px;height:333px;border-radius:50%;filter:blur(150px);opacity:.38;pointer-events:none}
+.swoosh{position:absolute;left:-418px;top:731px;width:1440px;height:1444px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.swoosh svg{width:1049px;height:1062px;transform:rotate(-30deg)}
+
+/* ---------- header / crumbs / footer ---------- */
+#khead{position:absolute;left:0;top:0;width:1080px;height:250px;z-index:6;transition:opacity .3s}
+#khead .glow{position:absolute;left:0;top:-25px;width:1080px;height:50px;border-radius:50%;background:var(--blue);filter:blur(60px);opacity:.55}
+#khead .pill{position:absolute;left:25px;top:25px;width:1030px;height:200px;border-radius:100px;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.85);box-shadow:inset 8px 8px 40px rgba(255,255,255,.35),0 14px 40px rgba(0,40,80,.06);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+#khead .logo{position:absolute;left:210px;top:70px;width:660px;height:111px}
+#crumbs{position:absolute;left:0;top:250px;width:1080px;height:120px;border-bottom:2px solid var(--line);display:flex;align-items:center;padding-left:64px;z-index:5}
+#crumbs .home{width:60px;height:40px;color:var(--blue);display:flex;align-items:center}
+#crumbs .chev{width:24px;height:24px;color:var(--grey)}
+#crumbs .ci{font-size:32px;font-weight:600;color:var(--grey);padding:0 9px;white-space:nowrap;transition:color .3s}
+#crumbs .ci.on{color:var(--blue)}
+#crumbs .ci.done{color:#5C8DB8}
+.no-chrome #khead,.no-chrome #crumbs{opacity:0;pointer-events:none}
+.no-crumbs #crumbs{opacity:0;pointer-events:none}
+#kfoot{position:absolute;left:34px;bottom:34px;width:1012px;height:220px;border-radius:999px;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.8);box-shadow:0 10px 40px rgba(0,40,80,.07);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:6;transition:opacity .25s,transform .25s}
+#kfoot.hide{opacity:0;transform:translateY(40px);pointer-events:none}
+#kfoot .fb{position:absolute;top:50px;width:380px;height:120px}
+#kfoot .fb.l{left:50px} #kfoot .fb.r{left:582px}
+#kfoot .fhome{position:absolute;left:446px;top:50px;width:120px;height:120px;border-radius:50%;background:#fff;border:3px solid var(--blue);color:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 24px rgba(0,80,140,.18);transition:transform .12s}
+#kfoot .fhome:active{transform:scale(.94)}
+#kfoot .fhome svg{width:54px;height:54px}
+.btn{height:120px;border-radius:100px;font-size:36px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:24px;padding:0 40px;transition:transform .12s,opacity .2s,background .2s}
+.btn:active{transform:scale(.97)}
+.btn svg{width:40px;height:40px;flex:none}
+.btn-primary{background:var(--blue);color:#fff;box-shadow:0 12px 30px rgba(0,107,182,.28)}
+.btn-outline{border:3px solid var(--blue);color:var(--blue);background:rgba(255,255,255,.5)}
+.btn[disabled],.btn.disabled{opacity:.35;pointer-events:none;box-shadow:none}
+.btn.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 12px 30px rgba(0,107,182,.28),0 0 0 0 rgba(0,107,182,.45)}50%{box-shadow:0 12px 30px rgba(0,107,182,.28),0 0 0 18px rgba(0,107,182,0)}}
+
+/* ---------- screen container ---------- */
+#screen{position:absolute;inset:0;z-index:4}
+.scr{position:absolute;inset:0}
+.scr.fwd{animation:inF .42s cubic-bezier(.2,.8,.2,1)}
+.scr.back{animation:inB .42s cubic-bezier(.2,.8,.2,1)}
+.scr.fade{animation:fadeIn .5s ease}
+@keyframes inF{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
+@keyframes inB{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.content{position:absolute;top:434px;left:64px;width:952px;bottom:290px;display:flex;flex-direction:column}
+.content.full{bottom:60px}
+.t-h{font-size:48px;font-weight:600;line-height:1.35}
+.t-s{font-size:36px;color:var(--muted);line-height:1.4;margin-top:14px}
+.center{text-align:center}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px}
+.tile{position:relative;height:290px;border-radius:32px;color:#fff;padding:38px 40px;display:flex;flex-direction:column;text-align:left;overflow:hidden;
+  background:linear-gradient(150deg,#1A8AD8 0%,#006BB6 48%,#004F88 100%);
+  box-shadow:0 26px 50px -18px rgba(0,70,130,.55),inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 0 rgba(0,0,0,.08);
+  transition:transform .15s,box-shadow .2s;animation:tileIn .5s cubic-bezier(.2,.8,.2,1) backwards}
+.tile:before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 0% 0%,rgba(255,255,255,.24),transparent 55%);pointer-events:none}
+.tile .wm,.rcard .wm{position:absolute;right:-70px;bottom:-80px;width:300px;height:300px;opacity:.13;filter:brightness(0) invert(1);pointer-events:none;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.tile:hover .wm,.rcard:hover .wm{transform:rotate(-14deg) scale(1.05)}
+.tile:hover{box-shadow:0 30px 60px -18px rgba(0,70,130,.65),inset 0 1px 0 rgba(255,255,255,.35)}
+.tile:active{transform:scale(.97)}
+.tile .tr{display:flex;justify-content:space-between;align-items:flex-start;position:relative}
+.ib{width:88px;height:88px;border-radius:26px;background:rgba(255,255,255,.16);border:1.5px solid rgba(255,255,255,.38);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.ib svg{width:48px;height:48px}
+.tile .go{width:58px;height:58px;border-radius:50%;background:#fff;color:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(0,0,0,.18);transition:transform .2s}
+.tile:hover .go{transform:translateX(4px)}
+.tile .go svg{width:30px;height:30px}
+.tile .tt{position:relative;font-size:38px;font-weight:600;margin-top:auto;letter-spacing:-.2px}
+.tile .td{position:relative;font-size:24px;line-height:1.35;opacity:.88;margin-top:8px}
+.tile.lone{grid-column:1 / span 2;justify-self:center;width:calc(50% - 20px)}
+.tiles.compact{gap:32px;margin-top:56px}
+.tiles.compact .tile{height:250px;padding:32px 36px}
+.tiles.compact .ib{width:72px;height:72px;border-radius:22px}
+.tiles.compact .ib svg{width:40px;height:40px}
+.tiles.compact .go{width:50px;height:50px}
+.tiles.compact .tile .tt{font-size:32px}
+.tiles.compact .tile .td{font-size:22px}
+@keyframes tileIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+
+/* option rows */
+.scroll{position:absolute;top:640px;left:56px;width:968px;bottom:290px;overflow-y:auto;display:flex;flex-direction:column;scrollbar-width:none;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 24px,#000 calc(100% - 70px),transparent);mask-image:linear-gradient(to bottom,transparent 0,#000 24px,#000 calc(100% - 70px),transparent);padding:24px 8px 80px}
+.scroll::-webkit-scrollbar{display:none}
+.opts{margin:auto 0;display:flex;flex-direction:column;gap:26px}
+.opt-w{border-radius:28px;background:#fff;border:2px solid #D6E4EF;overflow:hidden;box-shadow:0 14px 34px -16px rgba(0,60,110,.28);transition:border-color .25s,box-shadow .25s;animation:tileIn .45s cubic-bezier(.2,.8,.2,1) backwards;flex:none}
+.opt{width:100%;height:166px;padding:0 44px 0 32px;display:flex;align-items:center;justify-content:space-between;color:#0B2A44;font-size:32px;font-weight:600;text-align:left;transition:background .25s,color .25s;position:relative;overflow:hidden}
+.opt .ol{display:flex;align-items:center;gap:28px;position:relative}
+.opt .oi{width:96px;height:96px;border-radius:26px;background:var(--blue-xl);color:var(--blue);display:flex;align-items:center;justify-content:center;flex:none;transition:.25s;font-size:30px;font-weight:700}
+.opt .oi svg{width:50px;height:50px}
+.opt .os{display:block;font-size:24px;color:var(--muted);font-weight:400;margin-top:6px}
+.opt .op{font-size:36px;font-weight:700;color:var(--blue);white-space:nowrap;position:relative}
+.opt .op small{font-size:22px;font-weight:600;margin-right:8px;opacity:.75}
+.opt .wm{position:absolute;right:-40px;top:-60px;width:260px;height:260px;opacity:0;filter:brightness(0) invert(1);transition:opacity .3s}
+.opt-w.sel{border-color:var(--blue);box-shadow:0 26px 50px -18px rgba(0,90,160,.5)}
+.opt-w.sel .opt{background:linear-gradient(150deg,#1A8AD8,#006BB6 50%,#00548F);color:#fff}
+.opt-w.sel .opt .wm{opacity:.12}
+.opt-w.sel .opt .oi{background:rgba(255,255,255,.18);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.38)}
+.opt-w.sel .opt .os,.opt-w.sel .opt .op{color:#fff}
+.opt.nav{height:124px}
+.opts:has(.nav){gap:20px}
+.opt .chev{width:56px;height:56px;border-radius:50%;background:var(--blue-xl);color:var(--blue);display:flex;align-items:center;justify-content:center;flex:none;position:relative}
+.opt .chev svg{width:30px;height:30px}
+.opt-w.sel .opt .chev{background:#fff}
+.opt-d{height:0;overflow:hidden;background:#fff;display:grid;grid-template-columns:1fr 1fr;transition:height .35s cubic-bezier(.2,.8,.2,1)}
+.opt-w.sel .opt-d{height:148px}
+.opt-d .c{padding:30px 44px;color:#0B2A44}
+.opt-d .c+.c{border-left:2px solid #E6EEF4}
+.opt-d .c small{display:block;font-size:24px;color:var(--muted);font-weight:500}
+.opt-d .c b{display:block;font-size:40px;margin-top:10px;font-weight:700;color:var(--blue)}
+.opt-d .c.r{text-align:right}
+.more{position:absolute;left:0;right:0;bottom:300px;text-align:center;font-size:26px;color:var(--blue);font-weight:500;pointer-events:none;transition:opacity .3s;z-index:3}
+.more svg{display:inline-block;width:28px;height:28px;vertical-align:-6px;animation:bob 1.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(6px)}}
+
+/* fields & keypads */
+.field{margin-top:44px;height:140px;border:3px solid #CFD6DC;border-radius:24px;background:#fff;display:flex;align-items:center;padding:0 40px;font-size:54px;font-weight:600;letter-spacing:5px;transition:border-color .25s,box-shadow .25s;position:relative}
+.field.focus{border-color:var(--blue);box-shadow:0 0 0 8px rgba(0,107,182,.08)}
+.field.ok{border-color:var(--blue)}
+.field .ph{color:#B9C0C6;font-weight:500}
+.field .pre{font-size:40px;color:var(--grey);letter-spacing:0;margin-right:22px;font-weight:500}
+.field .caret{display:inline-block;width:4px;height:60px;background:var(--blue);margin-left:6px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.field .fbtn{position:absolute;right:24px;top:24px;width:86px;height:86px;border-radius:20px;background:var(--blue-xl);color:var(--blue);display:flex;align-items:center;justify-content:center}
+.field .fbtn svg{width:52px;height:52px}
+.field.email{font-size:44px;letter-spacing:1px}
+.vline{height:64px;display:flex;align-items:center;gap:14px;font-size:30px;color:var(--muted);padding-left:6px}
+.vline svg{width:40px;height:40px;flex:none}
+.vline.ok{color:var(--blue);font-weight:600}
+.vline.warn{color:var(--warn);font-weight:500}
+.vline.bad{color:var(--bad);font-weight:500}
+.vline .spin{width:34px;height:34px;border:5px solid var(--blue-l);border-top-color:var(--blue);border-radius:50%;animation:rot .8s linear infinite}
+.vline .ok-in{animation:popIn .4s cubic-bezier(.2,1.4,.4,1)}
+@keyframes popIn{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+@keyframes rot{to{transform:rotate(360deg)}}
+.instr{background:rgba(0,107,182,.06);border-radius:24px;padding:22px 36px;margin:6px 0 24px}
+.instr .ih{display:flex;align-items:center;gap:14px;color:var(--blue);font-size:28px;font-weight:600}
+.instr .ih svg{width:34px;height:34px}
+.instr ul{margin:12px 0 0 34px;font-size:25px;color:#5E6469;line-height:1.55}
+.keypad{display:grid;grid-template-columns:repeat(3,240px);gap:22px;justify-content:center;margin-top:auto}
+.key{height:110px;border-radius:24px;background:#fff;border:2px solid #E1E6EA;font-size:52px;font-weight:600;box-shadow:0 6px 0 #E1E6EA;display:flex;align-items:center;justify-content:center;transition:transform .08s,box-shadow .08s,background .15s}
+.key:active,.key.hit{transform:translateY(5px);box-shadow:0 1px 0 #E1E6EA;background:var(--blue-xl)}
+.key.fn{background:#F3F6F8;color:var(--blue)}
+.key.fn svg{width:52px;height:52px}
+.kbd{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.kbd .kr{display:flex;justify-content:center;gap:10px}
+.kbd .key{height:96px;min-width:84px;font-size:36px;border-radius:18px;padding:0 10px;font-weight:500;box-shadow:0 5px 0 #E1E6EA}
+.kbd .key.w2{min-width:178px}.kbd .key.w3{min-width:272px}.kbd .key.w4{min-width:360px}
+.kbd .key svg{width:44px;height:44px}
+
+/* info card / summary */
+.card{background:rgba(255,255,255,.75);border:2px solid #E6EBEF;border-radius:32px;padding:16px 48px;margin-top:60px;box-shadow:0 20px 50px rgba(0,40,80,.06)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:30px 0;border-bottom:2px solid #EEF1F3;font-size:32px;animation:tileIn .45s cubic-bezier(.2,.8,.2,1) backwards}
+.row:last-child{border-bottom:0}
+.row span{color:var(--muted)}
+.row b{font-weight:600;text-align:right;max-width:560px}
+.row.total span{color:var(--ink);font-weight:600}
+.row.total b{font-size:56px;color:var(--blue)}
+.note-box{display:flex;gap:18px;align-items:flex-start;margin-top:30px;background:#FFF6E8;border:2px solid #F4D9AE;color:#7A4A00;border-radius:24px;padding:24px 30px;font-size:27px;line-height:1.45}
+.note-box svg{width:38px;height:38px;flex:none;margin-top:2px}
+.note-box.info{background:var(--blue-xl);border-color:#CFE3F3;color:#204A6B}
+.amt-band{display:flex;justify-content:space-between;align-items:center;margin-top:50px;background:var(--blue-xl);border-radius:24px;padding:30px 44px;font-size:30px;color:#204A6B}
+.amt-band b{font-size:48px;color:var(--blue)}
+
+/* splash */
+.splash .sp-logo{position:absolute;left:64px;top:96px;width:500px;height:85px;animation:fadeUp .8s .1s cubic-bezier(.2,.8,.2,1) backwards}
+.splash h1{position:absolute;left:64px;top:560px;width:900px;font-size:92px;line-height:1.12;font-weight:700;animation:fadeUp .8s .25s cubic-bezier(.2,.8,.2,1) backwards}
+.splash h1 em{font-style:normal;color:var(--blue)}
+.splash p{position:absolute;left:64px;top:800px;width:760px;font-size:38px;color:var(--muted);line-height:1.4;animation:fadeUp .8s .4s cubic-bezier(.2,.8,.2,1) backwards}
+.splash .go{position:absolute;left:68px;top:946px;width:436px;height:140px;font-size:44px;animation:fadeUp .8s .55s cubic-bezier(.2,.8,.2,1) backwards}
+.splash .go svg{width:52px;height:52px}
+.splash .globe{position:absolute;left:277px;top:1121px;width:1000px;height:1016px;animation:globeIn 1.4s .2s cubic-bezier(.2,.8,.2,1) backwards}
+.splash .globe canvas{display:block;width:1000px;height:1016px}
+.splash .touch{position:absolute;left:0;right:0;bottom:120px;text-align:center;font-size:30px;color:var(--grey);animation:breathe 2.4s ease-in-out infinite}
+@keyframes shimmer{from{-webkit-mask-position:150% 0;mask-position:150% 0}to{-webkit-mask-position:-50% 0;mask-position:-50% 0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{50%{transform:translateY(-24px) rotate(-2deg)}}
+@keyframes globeIn{from{opacity:0;transform:translate(120px,120px) scale(.9)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(40px)}}
+@keyframes breathe{50%{opacity:.35}}
+
+/* language */
+.lang .opt .badge{width:84px;height:84px;border-radius:50%;background:var(--blue-xl);color:var(--blue);font-size:30px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.lang .opt-w.sel .badge{background:rgba(255,255,255,.2);color:#fff}
+
+/* cash acceptor */
+.cash-total{text-align:center;margin-top:50px}
+.cash-total small{display:block;font-size:30px;font-weight:600}
+.cash-total b{display:block;font-size:64px;color:var(--blue);font-weight:700;margin-top:6px}
+.acceptor{position:relative;width:340px;height:340px;margin:22px auto 0;border-radius:50%;background:var(--blue-l);overflow:hidden;transition:background .4s}
+.acceptor.okd{background:#D6F0DF}
+.acceptor.rej{animation:shake .5s}
+@keyframes shake{20%,60%{transform:translateX(-14px)}40%,80%{transform:translateX(14px)}}
+.acc-face{position:absolute;left:30px;top:40px;width:280px;height:100px;border-radius:24px;background:#fff;box-shadow:0 10px 24px rgba(0,60,110,.12)}
+.acc-slot{position:absolute;left:50px;top:116px;width:240px;height:24px;border-radius:12px;background:#0B2A44;box-shadow:inset 0 5px 8px rgba(0,0,0,.55);z-index:3}
+.acc-led{position:absolute;left:58px;top:68px;width:22px;height:22px;border-radius:50%;background:#3BB7FF;box-shadow:0 0 14px #3BB7FF;animation:breathe 1.2s infinite}
+.acceptor.okd .acc-led{background:#21C25E;box-shadow:0 0 14px #21C25E;animation:none}
+.acceptor.rej .acc-led{background:#FF4D4D;box-shadow:0 0 14px #FF4D4D}
+.acc-txt{position:absolute;left:94px;top:64px;font-size:24px;font-weight:600;color:#0B2A44;letter-spacing:1px}
+.lane{position:absolute;left:50px;top:128px;width:240px;height:212px;overflow:hidden;z-index:2}
+.bill-note{position:absolute;left:10px;top:0;width:220px;height:118px;border-radius:12px;padding:12px 16px;color:#fff;font-weight:700;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;
+  background:linear-gradient(135deg,#1A8AD8 0%,#006BB6 55%,#003F6E 100%);box-shadow:0 8px 18px rgba(0,50,90,.3);transform:translateY(300px)}
+.bill-note:before{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.4);border-radius:7px}
+.bill-note .nw{position:absolute;right:-6px;top:50%;width:96px;height:96px;margin-top:-48px;opacity:.28;filter:brightness(0) invert(1)}
+.bill-note .nv{font-size:40px;line-height:1;position:relative}
+.bill-note .ns{font-size:15px;letter-spacing:2px;opacity:.9;position:relative}
+.bill-note.coin{width:96px;height:96px;left:72px;border-radius:50%;padding:0;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#8FD0FF,#1A8AD8 45%,#00477A);box-shadow:0 6px 14px rgba(0,50,90,.35),inset 0 0 0 5px rgba(255,255,255,.25)}
+.bill-note.coin:before{inset:10px;border-radius:50%;border-color:rgba(255,255,255,.35)}
+.bill-note.coin .nv{font-size:32px}
+.bill-note.idle{animation:ghost 1.8s ease-in-out infinite}
+@keyframes ghost{0%,100%{transform:translateY(96px)}50%{transform:translateY(52px)}}
+.ins-btns{display:flex;gap:24px;margin-top:26px}
+.ins-btns .btn{flex:1;height:110px}
+.ins-btns.off .btn{opacity:.35;pointer-events:none;box-shadow:none}
+.chips .chip{pointer-events:none}
+.acc-status{text-align:center;font-size:32px;font-weight:600;color:var(--blue);margin-top:20px;min-height:44px}
+.acc-status.bad{color:var(--bad)} .acc-status.ok{color:var(--ok)}
+.ins-box{margin-top:18px;background:rgba(255,255,255,.85);border:2px solid #E6EBEF;border-radius:24px;padding:20px 36px}
+.ins-top{display:flex;justify-content:space-between;font-size:28px;color:var(--muted)}
+.ins-top b{color:var(--ink);font-size:34px}
+.bar{height:16px;border-radius:8px;background:#E8EEF2;margin-top:16px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--blue);border-radius:8px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.bar i.full{background:var(--ok)}
+.ins-list{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;min-height:40px}
+.ins-list span{font-size:24px;padding:6px 16px;border-radius:30px;background:var(--blue-xl);color:var(--blue);font-weight:600;animation:popIn .35s cubic-bezier(.2,1.4,.4,1)}
+.denoms{text-align:center;margin-top:20px}
+.denoms p{font-size:28px;font-weight:600}
+.chips{display:flex;justify-content:center;gap:16px;margin-top:12px}
+.chip{min-width:120px;height:62px;padding:0 24px;border-radius:40px;border:2px solid #9AA3AA;font-size:28px;font-style:italic;color:#555;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.7);transition:.15s}
+.chip:active{transform:scale(.95)}
+.chip:hover{border-color:var(--blue);color:var(--blue)}
+.chip svg{width:30px;height:30px}
+.chips.off .chip{opacity:.35;pointer-events:none}
+.hint{font-size:22px;color:var(--grey);margin-top:14px}
+
+/* POS */
+.pos-stage{position:relative;height:600px;margin-top:16px}
+.pos{position:absolute;left:306px;top:30px;width:340px;height:560px}
+.pos-hump{position:absolute;left:50px;top:0;width:240px;height:70px;border-radius:34px 34px 10px 10px;background:linear-gradient(180deg,#323C47,#1E252D);box-shadow:inset 0 2px 0 rgba(255,255,255,.1)}
+.pos-hump i{position:absolute;left:36px;right:36px;top:14px;height:10px;border-radius:5px;background:#07090C}
+.pos-hump i:after{content:"";position:absolute;left:20px;right:20px;top:-14px;height:16px;background:#F4F4F0;border-radius:2px 2px 0 0;box-shadow:0 -2px 4px rgba(0,0,0,.15)}
+.pos-body{position:absolute;left:0;top:40px;width:340px;height:520px;border-radius:40px 40px 58px 58px;padding:26px 28px;
+  background:linear-gradient(170deg,#3D4753 0%,#262E37 45%,#171C22 100%);
+  box-shadow:0 40px 60px -22px rgba(0,0,0,.5),inset 0 2px 0 rgba(255,255,255,.12),inset 0 -6px 0 rgba(0,0,0,.3)}
+.pos-nfcmark{position:absolute;left:50%;top:4px;width:26px;height:26px;margin-left:-13px;color:rgba(255,255,255,.55);transform:rotate(-90deg)}
+.pos-scr{margin-top:18px;height:170px;border-radius:12px;border:6px solid #0B0F13;background:linear-gradient(180deg,#0E3C5E,#0A2A43);color:#fff;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative;overflow:hidden;transition:background .3s}
+.pos-scr:after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.12),transparent 40%);pointer-events:none}
+.pos-scr .pa{font-size:32px;font-weight:700}
+.pos-scr .pm{font-size:20px;letter-spacing:1px;opacity:.9}
+.pos-scr .pm2{font-size:16px;opacity:.75;display:flex;align-items:center;gap:6px}
+.pos-scr .pm2 svg{width:18px;height:18px}
+.pos-scr .dots{display:flex;gap:14px}
+.pos-scr .dots i{width:20px;height:20px;border-radius:50%;border:3px solid #fff;transition:background .15s}
+.pos-scr .dots i.f{background:#fff}
+.pos-scr.ok{background:linear-gradient(180deg,#0E7A3E,#085A2C)}
+.pos-scr.bad{background:linear-gradient(180deg,#A02020,#701414)}
+.pos-scr .ps{width:46px;height:46px;border:6px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:rot .8s linear infinite}
+.pos-scr svg.big{width:56px;height:56px}
+.pos-keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.pos-keys i,.pos-fn i{height:42px;border-radius:10px;background:linear-gradient(180deg,#56626F,#46515D);box-shadow:0 4px 0 #11161B;font-style:normal;color:#E5EBF0;font-size:21px;font-weight:600;display:flex;align-items:center;justify-content:center;transition:transform .08s,box-shadow .08s,filter .1s}
+.pos-keys i.hit,.pos-fn i.hit{transform:translateY(3px);box-shadow:0 1px 0 #11161B;filter:brightness(1.5)}
+.pos-fn{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.pos-fn i.r{background:linear-gradient(180deg,#D24B3E,#B03227)} .pos-fn i.y{background:linear-gradient(180deg,#F0B92A,#D69C00);color:#3A2A00} .pos-fn i.g{background:linear-gradient(180deg,#2DB566,#1E9450)}
+.pos-slot{position:absolute;left:70px;right:70px;bottom:18px;height:10px;border-radius:5px;background:#07090C;box-shadow:inset 0 2px 4px rgba(0,0,0,.9),0 1px 0 rgba(255,255,255,.08)}
+.waves{position:absolute;left:436px;top:150px;width:80px;height:80px;pointer-events:none;z-index:3}
+.waves i{position:absolute;inset:0;border-radius:50%;border:4px solid rgba(0,107,182,.9);opacity:0;animation:wave 1.8s ease-out infinite}
+.waves i:nth-child(2){animation-delay:.6s}.waves i:nth-child(3){animation-delay:1.2s}
+.waves.on i{border-color:#21C25E;animation-duration:.8s}
+.waves.off{display:none}
+@keyframes wave{0%{transform:scale(.4);opacity:.85}100%{transform:scale(2.4);opacity:0}}
+.bankcard{position:absolute;left:640px;top:120px;width:260px;height:164px;border-radius:18px;overflow:hidden;color:#fff;padding:20px 22px;z-index:4;
+  background:linear-gradient(135deg,#1A8AD8 0%,#006BB6 50%,#003F6E 100%);box-shadow:0 26px 50px -10px rgba(0,30,80,.45),inset 0 1px 0 rgba(255,255,255,.35);transform:rotate(8deg)}
+.bankcard.idle{animation:cardIdle 2.4s ease-in-out infinite}
+@keyframes cardIdle{0%,100%{transform:translate(0,0) rotate(8deg)}50%{transform:translate(-80px,-24px) rotate(2deg)}}
+.bankcard .cw{position:absolute;right:-30px;bottom:-40px;width:170px;height:170px;opacity:.18;filter:brightness(0) invert(1)}
+.bankcard .chipc{width:46px;height:34px;border-radius:7px;background:linear-gradient(135deg,#F5D27A,#C9A23F);margin-top:14px}
+.bankcard .num{position:absolute;left:22px;bottom:18px;font-size:20px;letter-spacing:3px}
+.bankcard .wv{position:absolute;right:20px;top:18px;width:32px;height:32px}
+.bankcard .bt{font-size:16px;font-weight:700;letter-spacing:2px}
+.finger{position:absolute;left:0;top:0;width:56px;height:56px;border-radius:50%;z-index:6;pointer-events:none;opacity:0;transform:translate(760px,520px);
+  background:radial-gradient(circle at 40% 35%,rgba(255,255,255,.95),rgba(214,235,250,.85) 50%,rgba(0,107,182,.55));border:3px solid #fff;box-shadow:0 8px 18px rgba(0,0,0,.35);transition:transform .42s cubic-bezier(.3,.7,.3,1),opacity .3s,box-shadow .12s}
+.finger.on{opacity:1}
+.finger.press{box-shadow:0 2px 6px rgba(0,0,0,.35),0 0 0 12px rgba(0,107,182,.28)}
+.card-status{text-align:center;font-size:34px;font-weight:600;color:var(--blue);min-height:50px;display:flex;align-items:center;justify-content:center;gap:16px;margin-top:6px}
+.card-status svg{width:44px;height:44px}
+.card-status .spin{width:34px;height:34px;border:5px solid var(--blue-l);border-top-color:var(--blue);border-radius:50%;animation:rot .8s linear infinite}
+.card-status.ok{color:var(--ok)} .card-status.bad{color:var(--bad)}
+.sim{width:560px;margin:22px auto 0;display:flex}
+.sim[hidden]{display:none}
+.tmo{text-align:center;font-size:23px;color:var(--grey);margin-top:16px}
+/* Eboo */
+.eb-stage{position:relative;height:620px;margin-top:20px}
+.eb-stage .eboo-qr{position:absolute;left:226px;top:40px;width:500px;height:500px;margin:0}
+.eboo-qr .eb-res{position:absolute;inset:0;border-radius:40px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .4s;color:#fff;z-index:2}
+.eboo-qr .eb-res svg{width:180px;height:180px}
+.eboo-qr .eb-res.ok{background:rgba(10,140,62,.9)} .eboo-qr .eb-res.no{background:rgba(198,40,40,.9)}
+.eboo-qr.done .eb-res.ok,.eboo-qr.fail .eb-res.no{opacity:1}
+.eboo-qr.done:after,.eboo-qr.fail:after{display:none}
+.phone{position:absolute;left:560px;top:20px;width:290px;height:580px;border-radius:52px;background:#0F141A;padding:14px;z-index:4;opacity:0;
+  box-shadow:0 40px 70px -20px rgba(0,0,0,.5),inset 0 0 0 3px #2A333D;transform:translate(520px,40px) rotate(12deg);transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .4s}
+.phone.in{transform:translate(-90px,0) rotate(-4deg);opacity:1}
+.ph-notch{position:absolute;left:50%;top:22px;width:90px;height:22px;margin-left:-45px;border-radius:12px;background:#000;z-index:2}
+.ph-scr{width:100%;height:100%;border-radius:40px;background:#fff;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+.ph-scr.cam{background:#1B232C}
+.vf{position:relative;width:200px;height:200px;border:4px solid rgba(255,255,255,.85);border-radius:20px;padding:14px;overflow:hidden}
+.vf-qr{width:100%;height:100%;opacity:.9}
+.vf-line{position:absolute;left:8px;right:8px;top:10px;height:4px;background:#2EE07A;box-shadow:0 0 14px #2EE07A;animation:vf 1s ease-in-out infinite alternate}
+@keyframes vf{to{top:180px}}
+.vf-t{color:#fff;font-size:22px;margin-top:24px;font-weight:600}
+.eb-app{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;padding:0 24px;text-align:center;color:#1B1B1B}
+.eb-h{font-size:34px;font-weight:800;color:#6A2BD9;margin-bottom:24px}
+.eb-app small{font-size:18px;color:#777}
+.eb-app b{font-size:24px}
+.eb-amt{font-size:40px;font-weight:700;margin:14px 0 30px}
+.eb-pay{width:100%;height:70px;border-radius:36px;background:#6A2BD9;color:#fff;font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:transform .1s,filter .1s}
+.eb-pay.hit{transform:scale(.95);filter:brightness(1.2)}
+.eb-app .ps{width:60px;height:60px;border:7px solid #E6DAFB;border-top-color:#6A2BD9;border-radius:50%;animation:rot .8s linear infinite;margin-bottom:16px}
+.card-status .eb-poll{font-size:22px;color:var(--grey);font-weight:500}
+.field.bad{border-color:var(--bad);box-shadow:0 0 0 8px rgba(198,40,40,.08);animation:shake .45s}
+
+/* QR / scan */
+.scan-stage{position:relative;width:520px;height:520px;margin:10px auto 0;border-radius:40px;background:#0F1A24;overflow:hidden}
+.scan-win{position:absolute;left:90px;top:90px;width:340px;height:340px}
+.scan-win i{position:absolute;width:70px;height:70px;border:8px solid #4FC3FF;transition:border-color .3s}
+.scan-win i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-radius:18px 0 0 0}
+.scan-win i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-radius:0 18px 0 0}
+.scan-win i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-radius:0 0 0 18px}
+.scan-win i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-radius:0 0 18px 0}
+.scan-stage.ok .scan-win i{border-color:#2EE07A}
+.laser{position:absolute;left:96px;width:328px;height:6px;border-radius:3px;background:#FF3B3B;box-shadow:0 0 20px 4px rgba(255,59,59,.7);top:100px;animation:laser 1.3s ease-in-out infinite alternate;z-index:3}
+.scan-stage.ok .laser{display:none}
+@keyframes laser{to{top:418px}}
+.paperbill{position:absolute;left:110px;top:560px;width:300px;height:400px;background:#fff;border-radius:10px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.4);animation:billUp 1.4s .3s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes billUp{to{top:62px}}
+.paperbill .bl{height:10px;border-radius:5px;background:#DDE3E8;margin-bottom:10px}
+.paperbill .qrw{width:190px;height:190px;margin:18px auto 0}
+.scan-ok{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,140,62,.0);opacity:0;transition:.3s;z-index:4}
+.scan-stage.ok .scan-ok{opacity:1;background:rgba(10,140,62,.35)}
+.scan-ok svg{width:150px;height:150px;color:#fff;filter:drop-shadow(0 6px 20px rgba(0,0,0,.3))}
+
+/* Eboo */
+.eboo-qr{position:relative;width:520px;height:520px;margin:50px auto 0;padding:30px;background:#fff;border-radius:40px;box-shadow:0 30px 60px rgba(0,40,80,.12)}
+.eboo-qr .badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:18px;padding:12px 22px;font-weight:700;font-size:34px;color:#6A2BD9;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.eboo-qr:after{content:"";position:absolute;inset:-14px;border-radius:52px;border:4px solid rgba(106,43,217,.35);animation:ring 1.8s ease-out infinite}
+@keyframes ring{from{opacity:1;transform:scale(.96)}to{opacity:0;transform:scale(1.08)}}
+.poll{display:flex;align-items:center;justify-content:center;gap:16px;font-size:32px;font-weight:600;color:#6A2BD9;margin-top:50px}
+.poll i{width:14px;height:14px;border-radius:50%;background:currentColor;animation:dot 1.2s infinite}
+.poll i:nth-child(2){animation-delay:.2s}.poll i:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,80%,100%{opacity:.2}40%{opacity:1}}
+.pollmeta{text-align:center;font-size:24px;color:var(--grey);margin-top:12px}
+
+/* success, receipts */
+.okmark{width:220px;height:220px;margin:70px auto 0}
+.okmark circle{fill:none;stroke:var(--blue);stroke-width:7;stroke-dasharray:340;stroke-dashoffset:340;animation:draw .7s .1s ease-out forwards}
+.okmark path{fill:none;stroke:var(--blue);stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:90;stroke-dashoffset:90;animation:draw .45s .7s ease-out forwards}
+.okwrap{position:relative}
+.okwrap:before,.okwrap:after{content:"";position:absolute;left:50%;top:180px;width:220px;height:220px;margin:-110px 0 0 -110px;border-radius:50%;border:4px solid var(--blue);opacity:0;animation:burst 1s .9s ease-out}
+.okwrap:after{animation-delay:1.1s}
+@keyframes burst{from{opacity:.6;transform:scale(1)}to{opacity:0;transform:scale(1.7)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.big-t{font-size:72px;font-weight:700;text-align:center;margin-top:40px}
+.big-s{font-size:36px;color:var(--muted);text-align:center;line-height:1.45;margin:18px auto 0;max-width:860px}
+.txn{display:flex;justify-content:center;gap:40px;margin-top:40px;font-size:26px;color:var(--muted)}
+.txn b{color:var(--ink);font-weight:600}
+.rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:70px}
+.rcard{position:relative;overflow:hidden;height:300px;border-radius:32px;background:linear-gradient(150deg,#1A8AD8 0%,#006BB6 48%,#004F88 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;font-size:32px;font-weight:600;box-shadow:0 26px 50px -18px rgba(0,70,130,.55),inset 0 1px 0 rgba(255,255,255,.35);animation:tileIn .5s cubic-bezier(.2,.8,.2,1) backwards;transition:transform .15s}
+.rcard:before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 0% 0%,rgba(255,255,255,.24),transparent 55%);pointer-events:none}
+.rcard .ib{width:110px;height:110px;border-radius:32px}
+.rcard .ib svg{width:56px;height:56px}
+.rcard:active{transform:scale(.96)}
+
+/* printer */
+.printer{position:relative;width:560px;margin:70px auto 0}
+.pr-body{position:relative;height:120px;border-radius:30px;background:linear-gradient(180deg,#2B3440,#151B22);box-shadow:0 20px 40px rgba(0,0,0,.2);z-index:2}
+.pr-slot{position:absolute;left:60px;right:60px;bottom:26px;height:16px;border-radius:8px;background:#05080B;box-shadow:inset 0 3px 6px rgba(0,0,0,.8)}
+.pr-led{position:absolute;right:46px;top:30px;width:18px;height:18px;border-radius:50%;background:#21C25E;box-shadow:0 0 12px #21C25E;animation:breathe .8s infinite}
+.pr-label{position:absolute;left:46px;top:26px;font-size:20px;color:#8D9AA7;letter-spacing:2px}
+.pr-out{position:relative;width:460px;height:760px;margin:-34px auto 0;overflow:hidden}
+.paper{width:420px;margin:0 auto;background:#fff;box-shadow:0 14px 30px rgba(0,0,0,.14);padding:40px 34px 46px;transform:translateY(-101%);font-family:'Courier New',monospace;color:#222;font-size:19px;line-height:1.5;position:relative}
+.paper.feed{animation:feed 3.6s steps(24) forwards}
+.paper.done{transform:none;animation:wob 2.4s ease-in-out infinite}
+@keyframes feed{to{transform:translateY(0)}}
+@keyframes wob{50%{transform:translateY(8px) rotate(.4deg)}}
+.paper:after{content:"";position:absolute;left:0;right:0;bottom:-14px;height:14px;background:linear-gradient(-45deg,transparent 10px,#fff 0) 0 0/20px 14px,linear-gradient(45deg,transparent 10px,#fff 0) 0 0/20px 14px}
+.paper .pl{width:280px;height:48px;margin:0 auto 14px}
+.paper .pc{text-align:center}
+.paper hr{border:0;border-top:2px dashed #999;margin:12px 0}
+.paper .pr{display:flex;justify-content:space-between;gap:12px}
+.paper .pr span:last-child{text-align:right}
+.paper .bc{height:56px;margin:16px auto 0;width:300px;background:repeating-linear-gradient(90deg,#222 0 3px,#fff 3px 5px,#222 5px 6px,#fff 6px 10px,#222 10px 14px,#fff 14px 16px)}
+.collect{display:flex;align-items:center;justify-content:center;gap:14px;font-size:32px;color:var(--blue);font-weight:600;margin-top:20px;opacity:0;transition:opacity .4s}
+.collect.on{opacity:1}
+.collect svg{width:46px;height:46px;animation:bob 1s ease-in-out infinite}
+
+/* sent */
+.sent-ic{position:relative;width:260px;height:260px;margin:120px auto 0;border-radius:50%;background:var(--blue-xl);display:flex;align-items:center;justify-content:center;color:var(--blue)}
+.sent-ic svg{width:120px;height:120px;animation:fly 1.6s .3s cubic-bezier(.5,0,.2,1) forwards}
+.sent-ic .okc{position:absolute;opacity:0;animation:popIn .4s 1.6s forwards}
+@keyframes fly{40%{transform:translate(-20px,20px)}100%{transform:translate(260px,-260px) scale(.4);opacity:0}}
+
+/* voucher */
+.vticket{position:relative;margin-top:44px;border-radius:28px;background:linear-gradient(135deg,var(--blue),#0A4F86);color:#fff;padding:40px 56px;box-shadow:0 24px 50px rgba(0,80,140,.3);animation:tileIn .6s cubic-bezier(.2,.8,.2,1) backwards}
+.vticket:before,.vticket:after{content:"";position:absolute;top:50%;width:60px;height:60px;margin-top:-30px;border-radius:50%;background:#fff}
+.vticket:before{left:-30px}.vticket:after{right:-30px}
+.vticket .vh{display:flex;justify-content:space-between;align-items:center;font-size:28px;opacity:.9}
+.vticket .va{font-size:72px;font-weight:700;margin-top:6px}
+.vticket .vg{display:grid;grid-template-columns:1fr 1fr;gap:16px 40px;margin-top:22px;padding-top:22px;border-top:3px dashed rgba(255,255,255,.4);font-size:24px}
+.vticket .vg small{display:block;opacity:.75}
+.vticket .vg b{font-size:28px;font-weight:600}
+.err-ic{width:150px;height:150px;border-radius:50%;background:#FDECEC;color:var(--bad);display:flex;align-items:center;justify-content:center}
+.err-ic svg{width:80px;height:80px}
+
+/* modal */
+#modal{position:absolute;inset:0;z-index:50;display:none;background:rgba(15,20,28,.45);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+#modal.open{display:block;animation:fadeIn .25s}
+.sheet{position:absolute;left:34px;right:34px;bottom:34px;background:#fff;border-radius:48px;padding:96px 70px 64px;text-align:center;animation:sheetUp .42s cubic-bezier(.2,.8,.2,1);max-height:1700px;overflow:hidden}
+@keyframes sheetUp{from{transform:translateY(110%)}}
+.sheet-x{position:absolute;right:36px;top:36px;width:84px;height:84px;border-radius:50%;background:#E9ECEF;display:flex;align-items:center;justify-content:center;color:#555}
+.sheet-x svg{width:44px;height:44px}
+.sheet h2{font-size:52px;font-weight:700;margin-top:28px}
+.sheet h2:first-child{margin-top:0}
+.sheet p{font-size:34px;color:var(--muted);line-height:1.45;margin-top:18px}
+.sheet-ic{width:150px;height:150px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;background:var(--blue-xl);color:var(--blue)}
+.sheet-ic svg{width:80px;height:80px}
+.sheet-ic.bad{background:#FDECEC;color:var(--bad)}
+.sheet-ic.warn{background:#FFF3DF;color:var(--warn)}
+.sheet-ic.ok{background:#E3F6EA;color:var(--ok)}
+.sheet-actions{display:flex;gap:24px;margin-top:56px}
+.sheet-actions .btn{flex:1}
+.sheet ul.disc{text-align:left;margin-top:40px;display:flex;flex-direction:column;gap:28px;list-style:none}
+.sheet ul.disc li{display:flex;gap:22px;font-size:32px;line-height:1.45;color:#333}
+.sheet ul.disc li svg{width:44px;height:44px;flex:none;color:var(--blue);margin-top:2px}
+.spinner{width:170px;height:170px;margin:0 auto;border-radius:50%;border:14px solid var(--blue-l);border-top-color:var(--blue);animation:rot 1s linear infinite}
+.steps{margin-top:40px;font-size:30px;color:var(--muted);min-height:44px}
+.faces{display:flex;justify-content:center;gap:26px;margin-top:50px}
+.face{width:150px;height:150px;border-radius:50%;background:#F1F4F7;color:#9AA3AA;display:flex;align-items:center;justify-content:center;transition:.2s}
+.face svg{width:96px;height:96px}
+.face.sel{background:var(--blue);color:#fff;transform:scale(1.12);box-shadow:0 14px 30px rgba(0,107,182,.35)}
+.face-lbl{display:flex;justify-content:space-between;font-size:26px;color:var(--grey);margin:20px 40px 0}
+.count{font-size:30px;color:var(--grey);margin-top:28px}
+.toast{position:absolute;left:50%;top:400px;transform:translateX(-50%);background:#1C2530;color:#fff;font-size:28px;padding:20px 36px;border-radius:40px;z-index:60;box-shadow:0 14px 30px rgba(0,0,0,.25);animation:toast 2.6s forwards;white-space:nowrap}
+@keyframes toast{0%{opacity:0;transform:translate(-50%,-20px)}10%,85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><g id="cwlogo"><path d="M465.673 294.765C469.776 294.765 473.971 294.879 477.961 295.198C480.241 295.403 480.013 298.868 477.756 298.64C473.766 298.321 469.776 298.207 465.673 298.207C461.683 298.207 457.922 298.321 454.046 298.64C451.789 298.846 451.561 295.403 453.841 295.198C457.694 294.879 461.683 294.765 465.673 294.765ZM462.869 299.507C465.126 299.507 465.126 302.949 462.869 302.949C454.889 303.063 447.024 303.816 439.273 305.115C437.016 305.434 436.355 301.992 438.634 301.673C446.591 300.373 454.684 299.621 462.869 299.507ZM465.673 304.135H469.548C471.805 304.135 471.805 307.577 469.548 307.577H465.673C459.198 307.577 452.86 307.896 446.705 308.649C444.448 308.854 444.015 305.411 446.272 305.206C452.632 304.477 458.993 304.135 465.673 304.135ZM439.068 306.3C441.325 305.867 441.986 309.333 439.706 309.743C436.697 310.29 433.665 310.814 430.655 311.476C428.375 312 427.737 308.557 430.017 308.01C433.026 307.372 436.035 306.848 439.068 306.3ZM484.527 309.857C486.784 310.062 486.351 313.527 484.094 313.299C482.156 313.071 480.332 312.866 478.394 312.752C476.137 312.638 476.342 309.196 478.599 309.31C480.537 309.424 482.589 309.629 484.527 309.857ZM457.169 308.991C459.426 308.877 459.654 312.342 457.374 312.433C446.272 313.071 435.397 314.804 424.933 317.494C422.79 318.041 421.924 314.804 424.089 314.28C434.736 311.362 445.839 309.629 457.169 308.991ZM512.112 320.298C514.278 320.846 513.412 324.06 511.246 323.536C509.513 323.103 507.803 322.555 506.299 322.145C504.133 321.621 504.999 318.361 507.165 318.908C508.875 319.341 510.608 319.888 512.112 320.298ZM496.815 316.423C499.072 316.856 498.433 320.298 496.176 319.865C491.434 318.999 486.579 318.247 481.631 317.699C479.374 317.494 479.808 314.029 482.065 314.257C487.012 314.804 492.073 315.556 496.815 316.423ZM465.673 313.527C467.611 313.527 469.662 313.527 471.714 313.641C473.971 313.755 473.766 317.198 471.486 317.084C469.662 316.97 467.611 316.97 465.673 316.97C463.302 316.97 460.931 316.97 458.674 317.084C456.417 317.198 456.189 313.755 458.469 313.641C460.931 313.527 463.302 313.527 465.673 313.527ZM452.085 314.052C454.342 313.824 454.57 317.289 452.313 317.494C441.416 318.361 430.86 320.412 420.738 323.422C418.595 324.06 417.501 320.846 419.667 320.184C430.017 316.97 441.005 314.918 452.085 314.052ZM465.673 318.155H468.91C471.167 318.155 471.167 321.598 468.91 321.598H465.673C448.962 321.598 432.798 324.174 417.729 329.03C415.563 329.782 414.491 326.545 416.657 325.793C432.16 320.732 448.529 318.155 465.673 318.155ZM499.938 326.454C502.195 327.001 501.557 330.443 499.3 329.896C495.857 329.144 492.415 328.506 488.949 327.959C486.692 327.639 487.126 324.197 489.383 324.516C493.053 325.04 496.496 325.702 499.938 326.454ZM465.673 322.783C470.301 322.783 475.043 322.989 479.694 323.422C481.951 323.65 481.745 327.092 479.488 326.864C474.86 326.431 470.324 326.226 465.696 326.226C448.141 326.226 431.316 329.144 415.586 334.41C413.443 335.163 412.348 331.925 414.514 331.173C430.427 325.702 447.685 322.783 465.673 322.783ZM518.906 336.576C521.049 337.328 519.977 340.566 517.834 339.813C515.144 338.833 512.34 337.99 509.536 337.123C507.37 336.485 508.465 333.248 510.608 333.886C513.412 334.752 516.216 335.619 518.906 336.576ZM489.611 329.258C491.868 329.577 491.434 333.02 489.177 332.7C484.549 332.062 479.808 331.515 475.18 331.196C472.923 331.082 473.128 327.639 475.385 327.753C480.218 328.073 484.96 328.597 489.611 329.258ZM460.384 327.525C462.641 327.411 462.869 330.877 460.589 330.968C457.352 331.082 454.228 331.287 451.219 331.606C448.962 331.811 448.529 328.369 450.786 328.164C454.046 327.845 457.169 327.639 460.384 327.525ZM444.129 328.916C446.386 328.597 446.819 332.039 444.562 332.359C434.006 333.749 423.77 336.12 413.967 339.585C411.801 340.361 410.707 337.123 412.873 336.371C422.904 332.906 433.345 330.33 444.129 328.916ZM464.168 332.153C466.425 332.153 466.425 335.596 464.168 335.596C455.003 335.596 442.738 336.987 433.254 338.924C430.997 339.357 430.336 335.915 432.616 335.482C442.282 333.567 454.57 332.153 464.168 332.153ZM424.728 337.442C426.894 336.781 427.737 340.041 425.594 340.68C421.399 341.865 417.182 343.165 412.987 344.669C410.821 345.422 409.749 342.184 411.915 341.432C416.11 339.927 420.305 338.628 424.728 337.442ZM465.673 336.781C475.043 336.781 484.322 337.648 493.372 339.152C495.629 339.585 494.991 343.028 492.711 342.595C483.866 341.09 474.838 340.224 465.673 340.224C459.745 340.224 453.818 340.657 448.004 341.295C445.747 341.523 445.314 338.081 447.571 337.853C453.613 337.214 459.54 336.781 465.673 336.781ZM435.602 339.585C437.859 339.152 438.52 342.595 436.241 343.028C428.17 344.647 420.282 346.698 412.645 349.389C410.502 350.141 409.408 346.904 411.573 346.151C419.233 343.484 427.304 341.204 435.602 339.585ZM502.423 345.741C504.566 346.288 503.723 349.731 501.557 349.183C492.711 347.04 483.455 345.741 473.971 345.194C471.714 345.08 471.919 341.637 474.176 341.751C483.888 342.298 493.372 343.575 502.423 345.741ZM465.673 341.546C467.93 341.546 467.93 344.989 465.673 344.989C447.024 344.989 429.242 348.226 412.554 354.153C410.388 354.906 409.316 351.668 411.482 350.916C428.375 344.761 446.591 341.546 465.673 341.546ZM492.62 348.431C494.877 348.864 494.239 352.307 491.982 351.874C489.725 351.44 487.354 351.121 484.983 350.802C482.726 350.483 483.159 347.04 485.416 347.36C487.764 347.679 490.135 347.998 492.62 348.431ZM465.673 346.174C468.363 346.174 471.167 346.288 473.857 346.379C476.114 346.493 475.909 349.936 473.652 349.822C470.962 349.708 468.363 349.617 465.673 349.617C447.138 349.617 429.47 352.854 412.987 358.667C410.821 359.42 409.749 356.182 411.915 355.43C428.603 349.411 446.705 346.174 465.673 346.174ZM519.111 359.967C521.277 360.833 519.977 364.07 517.812 363.204C516.193 362.566 514.369 362.019 512.523 361.38C510.38 360.628 511.451 357.391 513.594 358.143C515.463 358.781 517.287 359.306 519.111 359.967ZM505.432 355.772C507.598 356.319 506.732 359.762 504.566 359.214C492.164 356.091 479.352 354.359 465.992 354.359C463.735 354.359 463.735 350.916 465.992 350.916C479.58 350.916 492.825 352.626 505.432 355.772ZM455.87 351.121C458.127 351.007 458.355 354.45 456.098 354.564C443.696 355.316 431.635 357.596 420.328 360.924C418.185 361.563 417.09 358.325 419.256 357.687C430.974 354.153 443.262 351.874 455.87 351.121ZM516.535 368.47C518.701 369.223 517.606 372.46 515.463 371.708C512.659 370.727 509.741 369.884 506.732 369.018C504.566 368.379 505.66 365.142 507.803 365.78C510.608 366.647 513.731 367.49 516.535 368.47ZM465.673 360.172C475.59 360.172 485.279 361.152 494.763 362.748C497.02 363.181 496.382 366.624 494.125 366.191C484.869 364.572 475.362 363.614 465.673 363.614C448.438 363.614 431.727 366.419 416.224 371.594C414.058 372.346 412.987 369.109 415.153 368.356C431.088 362.976 448.004 360.172 465.673 360.172ZM507.279 370.408C509.445 371.047 508.351 374.284 506.208 373.646C504.27 373.098 502.332 372.688 500.075 372.141C497.909 371.594 498.775 368.151 500.941 368.698C502.97 369.223 505.113 369.656 507.279 370.408ZM489.063 366.533C491.32 366.852 490.887 370.294 488.63 369.975C485.507 369.542 482.498 369.223 479.374 368.904C477.117 368.698 477.551 365.233 479.808 365.461C482.908 365.78 485.94 366.099 489.063 366.533ZM465.673 364.914C467.519 364.914 469.343 364.914 471.395 365.028C473.652 365.142 473.447 368.584 471.167 368.47C469.343 368.356 467.497 368.356 465.673 368.356C456.417 368.356 447.366 369.109 438.52 370.727C436.263 371.161 435.602 367.718 437.882 367.285C446.933 365.666 456.189 364.914 465.673 364.914ZM429.356 368.904C431.613 368.47 432.479 371.913 430.222 372.346C426.027 373.212 422.038 374.398 418.048 375.675C415.905 376.336 414.811 373.098 416.976 372.437C420.943 371.161 425.161 369.975 429.356 368.904ZM465.673 369.542C474.085 369.542 482.384 370.18 490.454 371.48C492.711 371.799 492.073 375.241 489.816 374.922C481.951 373.623 473.857 372.984 465.673 372.984C449.828 372.984 434.531 375.355 420.214 379.664C418.048 380.303 416.976 377.065 419.142 376.427C433.892 371.913 449.395 369.542 465.673 369.542ZM509.855 380.439C512.021 380.987 511.155 384.201 508.989 383.677C504.885 382.605 500.804 381.625 496.587 380.781C494.33 380.348 494.968 376.906 497.225 377.339C501.443 378.182 505.752 379.14 509.855 380.439ZM480.537 374.945C482.794 375.15 482.361 378.616 480.104 378.388C478.052 378.182 476 377.954 473.857 377.84C471.6 377.726 471.805 374.284 474.062 374.398C476.228 374.512 478.485 374.717 480.537 374.945ZM458.446 374.398C460.703 374.284 460.931 377.726 458.651 377.84C447.457 378.274 436.56 380.006 426.118 382.696C423.975 383.243 423.109 379.778 425.275 379.254C435.922 376.564 447.024 374.831 458.446 374.398ZM465.673 378.912C467.405 378.912 469.229 378.912 471.076 379.026C473.333 379.14 473.128 382.582 470.848 382.468C469.229 382.354 467.405 382.354 465.673 382.354C451.766 382.354 438.52 384.087 425.799 387.416C423.633 388.077 422.767 384.839 424.933 384.178C437.882 380.645 451.561 378.912 465.673 378.912ZM503.061 387.871C505.204 388.396 504.361 391.861 502.195 391.314C500.462 390.881 498.639 390.562 496.701 390.128C494.535 389.581 495.401 386.139 497.567 386.686C499.3 387.119 501.124 387.438 503.061 387.871ZM490.568 385.5C492.825 385.934 492.187 389.376 489.907 388.943C486.031 388.305 481.928 387.871 477.938 387.552C475.681 387.324 475.886 383.882 478.143 384.11C482.384 384.429 486.465 384.862 490.568 385.5ZM464.806 383.563C467.063 383.563 467.063 387.005 464.806 387.005C452.518 387.119 440.663 388.51 429.356 391.314C427.19 391.838 426.324 388.396 428.489 387.871C440.253 385.067 452.313 383.654 464.806 383.563ZM465.673 388.305C471.167 388.305 476.661 388.51 482.156 389.057C484.413 389.285 483.98 392.727 481.723 392.499C476.433 391.952 471.167 391.747 465.673 391.747C458.788 391.747 451.994 392.18 445.428 393.047C443.171 393.366 442.738 389.923 444.995 389.604C451.766 388.738 458.56 388.305 465.673 388.305ZM438.52 390.448C440.777 390.014 441.439 393.48 439.159 393.89C437.335 394.209 435.488 394.642 433.665 394.962C431.408 395.395 430.746 391.952 433.026 391.519C434.85 391.2 436.697 390.79 438.52 390.448ZM493.144 395.19C495.401 395.623 494.763 399.065 492.506 398.632C485.074 397.333 477.528 396.58 469.754 396.375C467.497 396.261 467.497 392.819 469.754 392.933C477.733 393.161 485.507 393.913 493.144 395.19ZM462.983 392.933C465.24 392.933 465.24 396.375 462.983 396.375C454.912 396.489 446.933 397.241 439.182 398.632C436.925 399.065 436.263 395.623 438.543 395.19C446.5 393.799 454.684 393.047 462.983 392.933ZM485.712 398.86C487.969 399.293 487.331 402.736 485.074 402.303C483.341 401.983 481.631 401.869 479.58 401.664C477.323 401.436 477.756 397.994 480.013 398.222C481.837 398.427 483.774 398.541 485.712 398.86ZM465.673 397.583C467.725 397.583 469.776 397.697 471.6 397.697C473.857 397.697 473.857 401.14 471.6 401.14C469.548 401.14 467.497 401.026 465.673 401.026C459.198 401.026 452.632 401.459 446.386 402.211C444.129 402.417 443.696 398.974 445.953 398.769C452.427 397.994 458.993 397.583 465.673 397.583ZM465.673 402.303C468.682 402.303 471.805 402.303 474.952 402.508C477.209 402.736 477.003 406.178 474.746 405.95C471.828 405.745 468.705 405.745 465.696 405.745C462.8 405.745 459.882 405.745 457.078 405.95C454.821 406.155 454.593 402.713 456.873 402.508C459.859 402.303 462.755 402.303 465.673 402.303ZM465.673 355.544C470.301 355.544 475.043 355.772 479.694 356.091C481.951 356.205 481.745 359.648 479.488 359.534C474.86 359.214 470.324 358.987 465.696 358.987C457.944 358.987 450.17 359.534 442.533 360.719C440.276 361.038 439.843 357.596 442.1 357.277C449.714 356.091 457.694 355.544 465.673 355.544ZM430.974 359.214C433.231 358.781 433.892 362.224 431.613 362.657C425.89 363.842 420.305 365.461 414.811 367.399C412.645 368.151 411.573 364.914 413.739 364.162C419.233 362.224 425.047 360.605 430.974 359.214ZM492.506 301.673C494.763 301.992 494.33 305.434 492.073 305.115C488.63 304.568 485.279 304.157 481.837 303.702C479.58 303.382 480.013 299.94 482.27 300.259C485.712 300.692 489.063 301.125 492.506 301.673ZM501.785 308.124C504.042 308.671 503.403 312.114 501.146 311.567C496.724 310.587 492.301 309.743 487.901 309.082C485.621 308.763 486.077 305.32 488.334 305.639C492.939 306.3 497.362 307.167 501.785 308.124Z" fill="#006BB6"/>
+<path d="M576.881 332.586H577.177V342.891C574.738 341.455 571.614 340.019 566.735 340.019C561.036 340.019 556.476 343.94 556.476 349.845C556.476 355.795 560.945 359.579 566.735 359.67C570.474 359.716 574.783 358.143 577.131 356.616V365.37C574.738 366.715 569.882 368.014 565.96 368.014C552.692 368.014 545.784 360.012 545.784 350.004C545.784 338.947 553.649 331.652 565.71 331.652C568.924 331.652 571.797 332.473 573.757 332.951C575.011 333.293 576.197 333.544 576.881 332.586Z" fill="black"/>
+<path d="M636.862 346.106L637.387 345.969H641.217C641.832 345.969 644.75 345.673 644.75 342.572C644.75 340.976 643.496 339.449 641.148 339.449H637.409L636.885 339.312L627.105 339.266V336.097C627.105 334.479 626.535 333.453 625.532 332.928V332.678H642.858C646.46 332.678 649.333 333.248 651.339 334.935C653.163 336.508 654.417 338.902 654.417 341.637C654.417 345.08 652.889 347.679 650.108 348.773C649.971 348.819 649.629 348.864 649.492 348.91C649.629 348.955 649.971 349.001 650.108 349.047C653.892 349.959 656.628 352.831 656.628 357.71C656.628 363.181 653.049 367.49 645.503 367.49H625.509V367.239C626.512 366.715 627.082 365.666 627.082 364.07V339.289L636.862 339.335L637.045 339.813V345.604L636.862 346.106V352.763L637.045 353.287V360.218L636.862 360.742L637.387 360.605H642.698C645.343 360.605 646.665 358.69 646.665 356.73C646.665 354.153 644.363 352.899 642.448 352.899H637.409L636.885 352.763V346.106H636.862Z" fill="black"/>
+<path d="M674.707 360.218L675.231 360.081H685.855C687.018 360.081 688.203 359.511 688.591 358.69H688.842V367.467H663.354V367.217C664.357 366.692 664.927 365.644 664.927 364.048V336.12C664.927 334.502 664.357 333.453 663.354 332.951V332.701H676.44V332.951C675.436 333.476 674.866 334.524 674.866 336.12V359.693L674.707 360.218Z" fill="black"/>
+<path d="M705.712 353.173L705.871 353.697V359.693L705.712 360.218L706.236 360.081H718.593C719.778 360.081 720.941 359.511 721.328 358.69H721.579V367.467H694.358V367.217C695.362 366.692 695.931 365.666 695.931 364.048V336.12C695.931 334.502 695.362 333.453 694.358 332.928V332.678H720.85V341.341H720.553C720.074 340.338 719.208 339.95 718.159 339.95H706.259L705.735 339.813L705.894 340.338V345.764L705.735 346.288L706.259 346.151H716.085C717.202 346.151 717.772 345.627 718.137 345.034H718.41V354.427H718.137C717.795 353.811 717.225 353.287 716.085 353.287H706.259L705.712 353.173Z" fill="black"/>
+<path d="M751.81 359.42C753.542 361.677 757.281 361.517 760.291 360.514L760.861 360.423L760.291 360.126L753.907 353.333L753.816 352.808L749.302 347.998L748.778 347.77L748.299 347.291C745.518 344.51 744.081 338.56 747.866 335.117C753.383 330.124 763.619 331.629 766.742 335.208C770.003 338.947 769.957 344.783 761.704 349.252L761.225 349.343L756.917 344.601C756.917 344.601 757.145 344.168 757.167 344.122C761.658 341.82 761.476 340.292 760.519 338.696C759.789 337.442 756.05 336.827 754.614 338.514C753.132 340.247 754.318 342.07 756.734 344.122L756.917 344.601L761.225 349.343L761.75 349.594L767.107 355.248L767.335 355.772L767.54 355.248C768.771 353.515 770.253 350.027 768.202 349.297V349.024H777.412C777.412 353.173 775.542 357.892 772.624 360.605L772.1 360.833L772.624 361.084L776.979 365.826C777.594 366.464 777.845 366.92 778.757 367.217V367.467H767.267L765.785 365.985L765.603 365.461C765.603 365.461 765.42 365.894 765.329 365.94C762.981 367.194 758.968 368.562 755.07 368.562C747.683 368.562 741.619 364.595 741.619 357.824C741.619 352.17 746.977 348.773 748.755 348.157L749.279 347.998L753.793 352.808L753.542 353.333C751.924 354.336 749.849 356.821 751.81 359.42Z" fill="black"/>
+<path d="M826.221 332.928C825.56 333.202 824.967 333.795 825.355 335.185L829.322 349.845L829.481 350.848L829.618 349.708L833.539 335.185C833.927 333.795 833.312 333.179 832.673 332.928V332.678H845.577V332.928C845.577 332.928 844.186 333.362 843.753 334.798L833.973 367.467H825.013L819.405 347.77L819.222 346.767L819.04 347.816L813.637 367.467H804.427L794.943 334.798C794.509 333.362 793.21 332.928 793.21 332.928V332.678H807.048V332.928C806.387 333.202 805.794 333.795 806.182 335.185L810.149 349.845L810.331 350.848L810.468 349.708L814.389 335.185C814.777 333.795 814.161 333.179 813.523 332.928V332.678H826.267V332.928H826.221Z" fill="black"/>
+<path d="M863.064 367.217V367.467H849.978V367.217C850.981 366.692 851.551 365.644 851.551 364.048V336.12C851.551 334.502 850.981 333.476 849.978 332.951V332.678H863.064V332.951C862.06 333.476 861.49 334.524 861.49 336.12V364.048C861.49 365.644 862.06 366.692 863.064 367.217Z" fill="black"/>
+<path d="M883.24 354.199V364.025C883.24 365.644 883.809 366.669 884.813 367.194V367.445H871.727V367.194C872.73 366.669 873.3 365.644 873.3 364.025V336.12C873.3 334.502 872.73 333.453 871.727 332.928V332.678H889.441C892.746 332.678 895.186 333.339 897.488 335.071C900.11 337.032 901.159 339.996 901.159 342.686C901.159 347.291 898.628 350.392 895.186 351.418C895.094 351.463 894.547 351.509 894.547 351.509C894.547 351.509 894.889 351.554 894.98 351.646C896.326 352.694 897.579 354.609 898.628 356.593L903.416 365.985C903.94 366.989 904.852 367.194 904.852 367.194V367.445H893.202L887.594 355.612C886.636 353.583 885.246 353.789 884.721 353.789H883.627L883.148 353.652V346.812L883.673 346.676H887.662C892.45 346.676 892.268 339.494 887.571 339.494H883.604L883.126 339.357L883.262 339.882V346.311L883.126 346.79V353.629L883.24 354.199Z" fill="black"/>
+<path d="M920.856 353.173L921.039 353.697V359.693L920.856 360.218L921.381 360.081H933.737C934.9 360.081 936.085 359.511 936.473 358.69H936.724V367.467H909.503V367.217C910.506 366.692 911.076 365.666 911.076 364.048V336.12C911.076 334.502 910.506 333.453 909.503 332.928V332.678H935.994V341.341H935.698C935.219 340.338 934.353 339.95 933.304 339.95H921.381L920.856 339.813L921.039 340.338V345.764L920.856 346.288L921.381 346.151H931.207C932.346 346.151 932.894 345.627 933.258 345.034H933.509V354.427H933.258C932.916 353.811 932.346 353.287 931.207 353.287H921.381L920.856 353.173Z" fill="black"/>
+<path d="M956.01 360.218L956.534 360.081H967.135C968.321 360.081 969.484 359.511 969.871 358.69H970.122V367.467H944.634V367.217C945.637 366.692 946.207 365.644 946.207 364.048V336.12C946.207 334.502 945.637 333.453 944.634 332.951V332.701H957.72V332.951C956.717 333.476 956.147 334.524 956.147 336.12V359.693L956.01 360.218Z" fill="black"/>
+<path d="M987.015 353.173L987.198 353.697V359.693L987.015 360.218L987.54 360.081H999.896C1001.06 360.081 1002.24 359.511 1002.63 358.69H1002.88V367.467H975.662V367.217C976.665 366.692 977.235 365.666 977.235 364.048V336.12C977.235 334.502 976.665 333.453 975.662 332.928V332.678H1002.15V341.341H1001.86C1001.38 340.338 1000.51 339.95 999.463 339.95H987.54L987.015 339.813L987.198 340.338V345.764L987.015 346.288L987.54 346.151H997.366C998.506 346.151 999.053 345.627 999.418 345.034H999.668V354.427H999.418C999.076 353.811 998.506 353.287 997.366 353.287H987.54L987.015 353.173Z" fill="black"/>
+<path d="M1023.83 331.811C1026.05 331.811 1028.87 332.427 1030.63 332.974C1032.45 333.59 1033.8 333.932 1034.37 332.769H1034.62V342.39C1032.02 340.68 1027.71 339.13 1024.31 339.13C1022.49 339.13 1020.53 339.608 1020.53 341.432C1020.53 344.008 1023.49 344.441 1025.95 345.171C1031.61 346.835 1037.08 348.864 1037.08 356C1037.08 364.184 1031.13 368.174 1022.12 368.174C1018.82 368.174 1015.13 367.262 1013.69 366.829C1012.55 366.487 1011.43 366.601 1010.95 367.49H1010.68V356.616C1012.78 358.006 1017.47 360.674 1021.83 360.674C1024.31 360.674 1026.52 359.762 1026.52 357.664C1026.52 355.498 1022.69 354.359 1020.21 353.72C1018.16 353.196 1010.2 351.372 1010.2 343.074C1010.22 335.755 1016.79 331.811 1023.83 331.811Z" fill="black"/>
+<path d="M1056.98 331.811C1059.19 331.811 1062.02 332.427 1063.78 332.974C1065.6 333.59 1066.94 333.932 1067.51 332.769H1067.77V342.39C1065.17 340.68 1060.86 339.13 1057.46 339.13C1055.64 339.13 1053.68 339.608 1053.68 341.432C1053.68 344.008 1056.62 344.441 1059.1 345.171C1064.76 346.835 1070.23 348.864 1070.23 356C1070.23 364.184 1064.28 368.174 1055.27 368.174C1051.97 368.174 1048.27 367.262 1046.84 366.829C1045.7 366.487 1044.58 366.601 1044.1 367.49H1043.85V356.616C1045.95 358.006 1050.64 360.674 1054.98 360.674C1057.46 360.674 1059.67 359.762 1059.67 357.664C1059.67 355.498 1055.84 354.359 1053.36 353.72C1051.31 353.196 1043.35 351.372 1043.35 343.074C1043.37 335.755 1049.94 331.811 1056.98 331.811Z" fill="black"/>
+<path d="M607.02 367.467V367.217C607.886 366.92 608.501 366.487 607.932 364.868L606.404 360.56L606.495 360.172L604.01 353.561L603.714 353.127L599.929 342.435L599.793 341.751L599.656 342.435L596.008 353.036L595.666 353.561L596.191 353.378H603.532L604.01 353.561L606.495 360.172L606.108 360.354H593.637L593.295 360.172L593.386 360.56L591.905 364.777C591.335 366.419 591.768 366.989 592.816 367.217V367.467H580.323V367.217C580.323 367.217 581.668 366.875 582.375 365.005L593.409 335.186C593.728 334.365 593.728 333.27 592.816 332.974V332.723H608.387V332.974C607.476 333.27 607.476 334.365 607.772 335.186L619.308 365.096C619.923 366.624 621.36 367.217 621.36 367.217V367.467H607.02Z" fill="black"/></g></defs></svg>
+
+<button id="cmtToggle" class="cmt-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg><span id="cmtCount" class="cmt-n"></span><span>Comments</span></button>
+<aside id="cmtPanel" class="hidden">
+  <div class="cp-head"><b>Comments</b><button id="cmtClose" title="Close">✕</button></div>
+  <label class="cp-name">Your name<input id="cmtName" placeholder="e.g. Sarah, C&amp;W" maxlength="40"></label>
+  <button id="cmtAdd" class="cp-add">＋ Add a comment</button>
+  <div class="cp-hint" id="cmtHint">Click anywhere on the kiosk screen to place your comment. Press Esc to cancel.</div>
+  <label class="cp-check"><input type="checkbox" id="cmtShowResolved"> Show resolved</label>
+  <div id="cmtList" class="cp-list"></div>
+  <div class="cp-foot">
+    <button id="cmtSave" class="cp-pri">Download copy with comments</button>
+    <button id="cmtImport">Import comments from a file…</button>
+    <input type="file" id="cmtFile" accept=".html,.htm,.json" hidden>
+    <div class="cp-note">Comments are saved in this browser. To send them back, download a copy and share the file. Opening that file shows every comment.</div>
+  </div>
+</aside>
+<div id="cmtPop" class="cmt-pop" hidden></div>
+<div id="app">
+  <aside id="panel">
+    <button id="panelHide" style="float:right;color:#7D8A97;font-size:18px;line-height:1" title="Hide panel (P)">✕</button><h1>CWS Self-Service Kiosk</h1>
+    <div class="sub">Clickable prototype · BRD v1.1 (28 Sep 2026)</div>
+    <div class="now">Screen: <b id="curName">Welcome</b></div>
+    <div class="ptabs"><button data-tab="journeys" class="on">Journeys</button><button data-tab="scenarios">Scenarios</button><button data-tab="errors">Errors <span id="errBadge" class="badge"></span></button></div>
+
+    <div class="ptab on" data-tab="journeys">
+      <h3>Jump to journey</h3>
+      <div class="jl">
+        <button data-jump="splash">↺ Restart at Welcome</button>
+        <button data-jump="bill">Bill Payment</button>
+        <button data-jump="wbb">Wireless Broadband</button>
+        <button data-jump="home">Home Broadband</button>
+        <button data-jump="topup">eTopUp</button>
+        <button data-jump="mobile">Mobile Boosters</button>
+      </div>
+      <h3>Demo numbers</h3>
+      <div class="tip"><b style="color:#fff">211 1111</b> Prepaid · <b style="color:#fff">222 2222</b> Postpaid · <b style="color:#fff">233 3333</b> Tourist. Any other number uses the Scenarios tab setting.</div>
+      <h3>Display</h3>
+      <div class="seg-row"><div class="seg" data-k="display"><button data-v="actual">Actual 1080 × 1920</button><button data-v="fit">Fit to window</button></div></div>
+    </div>
+
+    <div class="ptab" data-tab="scenarios">
+      <h3>Customer</h3>
+      <div class="seg-row"><label>Mobile number type</label>
+        <div class="seg" data-k="mobile"><button data-v="prepaid">Prepaid</button><button data-v="postpaid">Postpaid</button><button data-v="tourist">Tourist</button></div></div>
+      <div class="seg-row"><label>Wireless Broadband number</label>
+        <div class="seg" data-k="wbb"><button data-v="prepaid">Prepaid</button><button data-v="postpaid">Postpaid</button></div></div>
+      <h3>Payment results</h3>
+      <div class="seg-row"><label>Card terminal</label>
+        <div class="seg" data-k="card"><button data-v="approved">Approved</button><button data-v="declined">Declined</button><button data-v="cancelled">Cancelled</button><button data-v="timeout">Timeout</button></div></div>
+      <div class="seg-row"><label>Eboo payment</label>
+        <div class="seg" data-k="ebooRes"><button data-v="success">Success</button><button data-v="once">Fail once</button><button data-v="fail">Always fail</button></div></div>
+      <h3>Hardware simulation</h3>
+      <div class="hw">
+        <button id="hwReject">Reject the next cash note</button>
+        <button id="hwIdle">Trigger inactivity timeout</button>
+      </div>
+    </div>
+
+    <div class="ptab" data-tab="errors">
+      <div class="tip" style="margin-top:16px">Turn an error on, then run any journey to see how the kiosk handles it.</div>
+      <div class="err-row"><label>Service availability <small>All journeys · on service selection</small></label>
+        <div class="seg" data-k="svc"><button data-v="online">Online</button><button data-v="down">Unavailable</button></div></div>
+      <div class="err-row"><label>Number / account / username lookup <small>Phone, account, service number, username</small></label>
+        <div class="seg" data-k="lookup"><button data-v="ok">Found</button><button data-v="notfound">Not found</button><button data-v="inactive">Inactive</button></div></div>
+      <div class="err-row"><label>Cash acceptor <small>When choosing cash</small></label>
+        <div class="seg" data-k="cashHw"><button data-v="on">Online</button><button data-v="off">Out of service</button></div></div>
+      <div class="err-row"><label>Service fulfilment <small>After payment is taken</small></label>
+        <div class="seg" data-k="fulfil"><button data-v="success">Success</button><button data-v="fail">Fails → voucher</button></div></div>
+      <div class="err-row"><label>Receipt printer <small>When choosing a printed receipt</small></label>
+        <div class="seg" data-k="printer"><button data-v="ok">Ready</button><button data-v="off">Out of paper</button></div></div>
+      <div class="err-row"><label>Card terminal <small>Also on the Scenarios tab</small></label>
+        <div class="seg" data-k="card"><button data-v="approved">Approved</button><button data-v="declined">Declined</button><button data-v="cancelled">Cancelled</button><button data-v="timeout">Timeout</button></div></div>
+      <div class="err-row"><label>Eboo payment <small>Also on the Scenarios tab</small></label>
+        <div class="seg" data-k="ebooRes"><button data-v="success">Success</button><button data-v="once">Fail once</button><button data-v="fail">Always fail</button></div></div>
+      <div class="hw" style="margin-top:14px"><button id="errReset">Reset all to normal</button></div>
+    </div>
+
+    <div class="foot">
+      Type on your laptop keyboard on any entry screen: Enter continues, Backspace deletes, Esc clears.<br><br>
+      Product prices and validity details are placeholders until CWS shares the product catalogue.<br><br>
+      <kbd>P</kbd> hide/show this panel · <kbd>F</kbd> fullscreen
+    </div>
+  </aside>
+
+  <div id="stageArea">
+    <button id="panelToggle" hidden>Presenter panel (P)</button>
+    <div id="wrap">
+      <div id="kiosk" class="no-chrome">
+        <div class="blob" style="left:0;top:336px;background:#006BE8"></div>
+        <div class="blob" style="left:747px;top:0;background:#FF9500"></div>
+        <div class="blob" style="left:747px;top:1587px;background:#008537"></div>
+        <div class="blob" style="left:0;top:1390px;background:#D50000"></div>
+        <div class="swoosh"><svg viewBox="0 0 1049 1062"><path d="M528.43 0C567.589 0 607.62 1.08868 645.692 4.13698C667.447 6.0966 665.272 39.1924 643.734 37.0151C605.662 33.9668 567.589 32.8781 528.43 32.8781C490.357 32.8781 454.461 33.9668 417.477 37.0151C395.939 38.9747 393.763 6.0966 415.518 4.13698C452.285 1.08868 490.357 0 528.43 0ZM501.67 45.289C523.208 45.289 523.208 78.1671 501.67 78.1671C425.526 79.2558 350.47 86.441 276.501 98.852C254.963 101.9 248.654 69.0222 270.409 65.9739C346.336 53.563 423.568 46.3777 501.67 45.289ZM528.43 89.4893H565.414C586.952 89.4893 586.952 122.367 565.414 122.367H528.43C466.644 122.367 406.164 125.416 347.424 132.601C325.886 134.561 321.752 101.683 343.29 99.7229C403.988 92.7554 464.686 89.4893 528.43 89.4893ZM274.543 110.174C296.081 106.037 302.39 139.133 280.634 143.052C251.917 148.278 222.982 153.286 194.265 159.6C172.51 164.608 166.418 131.73 188.173 126.504C216.891 120.408 245.608 115.4 274.543 110.174ZM708.348 144.141C729.885 146.101 725.752 179.196 704.214 177.019C685.722 174.842 668.317 172.882 649.825 171.793C628.287 170.705 630.245 137.827 651.783 138.915C670.275 140.004 689.855 141.964 708.348 144.141ZM447.281 135.867C468.819 134.778 470.995 167.874 449.24 168.745C343.29 174.842 239.516 191.39 139.659 217.082C119.209 222.308 110.941 191.39 131.609 186.382C233.207 158.512 339.157 141.964 447.281 135.867ZM971.589 243.864C992.257 249.09 983.99 279.79 963.322 274.782C946.788 270.645 930.471 265.42 916.113 261.5C895.445 256.493 903.712 225.356 924.38 230.582C940.696 234.719 957.23 239.945 971.589 243.864ZM825.61 206.849C847.148 210.986 841.056 243.864 819.518 239.727C774.267 231.453 727.928 224.268 680.718 219.042C659.18 217.082 663.314 183.987 684.852 186.164C732.061 191.39 780.358 198.575 825.61 206.849ZM528.43 179.196C546.922 179.196 566.502 179.196 586.082 180.285C607.62 181.374 605.662 214.252 583.906 213.163C566.502 212.074 546.922 212.074 528.43 212.074C505.804 212.074 483.178 212.074 461.64 213.163C440.102 214.252 437.927 181.374 459.682 180.285C483.178 179.196 505.804 179.196 528.43 179.196ZM398.767 184.204C420.305 182.027 422.48 215.123 400.942 217.082C296.951 225.356 196.223 244.953 99.6286 273.694C79.1784 279.79 68.7358 249.09 89.4035 242.775C188.173 212.074 293.035 192.478 398.767 184.204ZM528.43 223.397H559.322C580.86 223.397 580.86 256.275 559.322 256.275H528.43C368.962 256.275 214.715 280.879 70.9113 327.257C50.2436 334.442 40.0185 303.523 60.6862 296.338C208.624 248.001 364.828 223.397 528.43 223.397ZM855.415 302.652C876.953 307.878 870.861 340.756 849.323 335.531C816.472 328.345 783.622 322.249 750.553 317.023C729.015 313.975 733.149 281.097 754.687 284.145C789.713 289.153 822.564 295.467 855.415 302.652ZM528.43 267.597C572.593 267.597 617.845 269.557 662.226 273.694C683.764 275.871 681.806 308.749 660.268 306.572C616.104 302.435 572.811 300.475 528.647 300.475C361.13 300.475 200.574 328.345 50.4611 378.642C30.011 385.827 19.5683 354.909 40.2361 347.724C192.089 295.467 356.779 267.597 528.43 267.597ZM1036.42 399.327C1056.87 406.512 1046.65 437.431 1026.2 430.246C1000.52 420.883 973.765 412.827 947.005 404.553C926.338 398.456 936.78 367.538 957.231 373.634C983.99 381.908 1010.75 390.182 1036.42 399.327ZM756.862 329.434C778.4 332.482 774.267 365.36 752.729 362.312C708.565 356.215 663.314 350.99 619.15 347.941C597.612 346.853 599.57 313.975 621.108 315.063C667.23 318.112 712.481 323.12 756.862 329.434ZM477.957 312.886C499.495 311.797 501.67 344.893 479.915 345.764C449.022 346.853 419.217 348.812 390.5 351.861C368.962 353.82 364.828 320.942 386.366 318.983C417.476 315.934 447.281 313.975 477.957 312.886ZM322.84 326.168C344.378 323.12 348.512 355.998 326.974 359.046C226.246 372.328 128.563 394.972 35.0147 428.068C14.347 435.471 3.90437 404.553 24.5721 397.367C120.296 364.272 219.937 339.668 322.84 326.168ZM514.071 357.086C535.609 357.086 535.609 389.964 514.071 389.964C426.614 389.964 309.569 403.246 219.066 421.754C197.528 425.891 191.219 393.013 212.975 388.876C305.218 370.586 422.48 357.086 514.071 357.086ZM137.701 407.601C158.368 401.287 166.418 432.423 145.968 438.519C105.938 449.842 65.69 462.253 25.6599 476.623C4.99214 483.808 -5.23294 452.89 15.4348 445.705C55.4649 431.334 95.495 418.923 137.701 407.601ZM528.43 401.287C617.845 401.287 706.39 409.561 792.759 423.931C814.297 428.068 808.205 460.946 786.45 456.809C702.039 442.439 615.887 434.165 528.43 434.165C471.865 434.165 415.301 438.302 359.824 444.398C338.286 446.576 334.153 413.698 355.691 411.52C413.343 405.424 469.907 401.287 528.43 401.287ZM241.474 428.068C263.012 423.931 269.322 456.809 247.566 460.946C170.552 476.405 95.2775 496.002 22.3965 521.694C1.94637 528.88 -8.49627 497.961 12.1715 490.776C85.27 465.301 162.284 443.527 241.474 428.068ZM879.128 486.857C899.578 492.082 891.529 524.961 870.861 519.735C786.45 499.268 698.122 486.857 607.62 481.631C586.082 480.542 588.04 447.664 609.578 448.753C702.256 453.979 792.759 466.172 879.128 486.857ZM528.43 446.793C549.968 446.793 549.968 479.672 528.43 479.672C350.47 479.672 180.777 510.59 21.5263 567.201C0.8586 574.386 -9.36649 543.468 11.3012 536.283C172.51 477.494 346.336 446.793 528.43 446.793ZM785.58 512.55C807.118 516.687 801.026 549.565 779.488 545.428C757.95 541.291 735.324 538.242 712.699 535.194C691.161 532.146 695.294 499.268 716.832 502.316C739.24 505.364 761.866 508.413 785.58 512.55ZM528.43 490.994C554.101 490.994 580.86 492.082 606.532 492.953C628.07 494.042 626.112 526.92 604.574 525.831C578.902 524.743 554.101 523.872 528.43 523.872C351.557 523.872 182.952 554.79 25.6599 610.313C4.99214 617.498 -5.23294 586.58 15.4348 579.394C174.685 521.912 347.424 490.994 528.43 490.994ZM1038.38 622.724C1059.05 630.998 1046.65 661.916 1025.98 653.642C1010.53 647.546 993.127 642.32 975.505 636.223C955.055 629.038 965.28 598.12 985.73 605.305C1003.57 611.402 1020.97 616.409 1038.38 622.724ZM907.846 582.66C928.513 587.886 920.246 620.764 899.578 615.539C781.228 585.709 658.963 569.161 531.475 569.161C509.937 569.161 509.937 536.283 531.475 536.283C661.138 536.283 787.538 552.613 907.846 582.66ZM434.881 538.242C456.419 537.154 458.594 570.032 437.056 571.12C318.707 578.306 203.62 600.079 95.7126 631.869C75.2624 637.965 64.8198 607.047 85.4875 600.95C197.311 567.201 314.573 545.428 434.881 538.242ZM1013.79 703.939C1034.46 711.125 1024.02 742.043 1003.57 734.858C976.81 725.495 948.963 717.439 920.246 709.165C899.578 703.068 910.021 672.15 930.471 678.246C957.231 686.52 987.036 694.577 1013.79 703.939ZM528.43 624.683C623.066 624.683 715.527 634.046 806.03 649.288C827.568 653.424 821.476 686.303 799.938 682.166C711.611 666.706 620.89 657.562 528.43 657.562C363.958 657.562 204.49 684.343 56.5527 733.769C35.885 740.954 25.6599 710.036 46.3276 702.85C198.399 651.465 359.824 624.683 528.43 624.683ZM925.467 722.447C946.135 728.543 935.693 759.462 915.242 753.365C896.75 748.139 878.258 744.22 856.72 738.995C836.052 733.769 844.319 700.891 864.987 706.117C884.35 711.124 904.8 715.261 925.467 722.447ZM751.641 685.432C773.179 688.48 769.045 721.358 747.507 718.31C717.702 714.173 688.985 711.124 659.18 708.076C637.642 706.117 641.776 673.021 663.314 675.198C692.901 678.246 721.836 681.295 751.641 685.432ZM528.43 669.972C546.052 669.972 563.456 669.972 583.036 671.061C604.574 672.15 602.616 705.028 580.86 703.939C563.456 702.851 545.834 702.85 528.43 702.85C440.102 702.85 353.733 710.036 269.322 725.495C247.784 729.632 241.474 696.754 263.23 692.617C349.599 677.158 437.927 669.972 528.43 669.972ZM181.864 708.076C203.402 703.939 211.669 736.817 190.131 740.954C150.101 749.228 112.029 760.55 73.9571 772.744C53.5069 779.058 43.0643 748.14 63.732 741.825C101.587 729.632 141.834 718.31 181.864 708.076ZM528.43 714.173C608.707 714.173 687.897 720.269 764.912 732.68C786.45 735.729 780.358 768.607 758.82 765.558C683.764 753.147 606.532 747.051 528.43 747.051C377.229 747.051 231.249 769.695 94.6248 810.847C73.9571 816.944 63.732 786.026 84.3997 779.929C225.158 736.817 373.095 714.173 528.43 714.173ZM950.051 818.25C970.719 823.476 962.452 854.177 941.784 849.169C902.624 838.935 863.682 829.573 823.434 821.516C801.896 817.379 807.988 784.501 829.526 788.638C869.773 796.695 910.891 805.839 950.051 818.25ZM670.275 765.776C691.813 767.736 687.68 800.832 666.142 798.654C646.562 796.695 626.982 794.517 606.532 793.428C584.994 792.34 586.952 759.462 608.49 760.55C629.158 761.639 650.695 763.599 670.275 765.776ZM459.465 760.55C481.003 759.462 483.178 792.34 461.423 793.428C354.603 797.565 250.612 814.113 150.972 839.806C130.521 845.032 122.254 811.936 142.922 806.928C244.52 781.235 350.47 764.687 459.465 760.55ZM528.43 803.662C544.964 803.662 562.368 803.662 579.99 804.751C601.528 805.839 599.57 838.718 577.815 837.629C562.368 836.54 544.964 836.54 528.43 836.54C395.721 836.54 269.322 853.088 147.926 884.877C127.258 891.192 118.991 860.273 139.659 853.959C263.23 820.21 393.763 803.662 528.43 803.662ZM885.22 889.232C905.67 894.24 897.62 927.336 876.953 922.11C860.419 917.973 843.014 914.925 824.522 910.788C803.854 905.562 812.121 872.684 832.789 877.91C849.323 882.047 866.728 885.095 885.22 889.232ZM766 866.588C787.538 870.725 781.446 903.603 759.69 899.466C722.706 893.369 683.546 889.232 645.474 886.184C623.936 884.007 625.894 851.128 647.432 853.306C687.897 856.354 726.84 860.491 766 866.588ZM520.162 848.08C541.7 848.08 541.7 880.958 520.162 880.958C402.9 882.047 289.772 895.329 181.864 922.11C161.197 927.118 152.93 894.24 173.597 889.232C285.856 862.451 400.942 848.951 520.162 848.08ZM528.43 893.369C580.86 893.369 633.291 895.329 685.722 900.554C707.26 902.732 703.126 935.61 681.588 933.432C631.116 928.207 580.86 926.247 528.43 926.247C462.728 926.247 397.897 930.384 335.241 938.658C313.703 941.706 309.569 908.828 331.107 905.78C395.721 897.506 460.552 893.369 528.43 893.369ZM269.322 913.836C290.859 909.699 297.169 942.795 275.413 946.714C258.009 949.763 240.387 953.9 222.982 956.948C201.444 961.085 195.135 928.207 216.891 924.07C234.295 921.022 251.917 917.102 269.322 913.836ZM790.583 959.125C812.121 963.262 806.03 996.14 784.492 992.003C713.569 979.592 641.558 972.407 567.372 970.448C545.834 969.359 545.834 936.481 567.372 937.57C643.516 939.747 717.702 946.932 790.583 959.125ZM502.758 937.57C524.296 937.57 524.296 970.448 502.758 970.448C425.744 971.536 349.599 978.722 275.631 992.003C254.093 996.14 247.784 963.262 269.539 959.125C345.466 945.843 423.568 938.658 502.758 937.57ZM719.66 994.181C741.198 998.318 735.107 1031.2 713.569 1027.06C697.035 1024.01 680.718 1022.92 661.138 1020.96C639.6 1018.78 643.734 985.907 665.272 988.084C682.676 990.044 701.168 991.132 719.66 994.181ZM528.43 981.987C548.01 981.987 567.589 983.076 584.994 983.076C606.532 983.076 606.532 1015.95 584.994 1015.95C565.414 1015.95 545.834 1014.87 528.43 1014.87C466.644 1014.87 403.988 1019 344.378 1026.19C322.84 1028.15 318.707 995.269 340.244 993.31C402.03 985.907 464.686 981.987 528.43 981.987ZM528.43 1027.06C557.147 1027.06 586.952 1027.06 616.974 1029.02C638.512 1031.2 636.554 1064.07 615.016 1061.9C587.169 1059.94 557.364 1059.94 528.647 1059.94C501.018 1059.94 473.171 1059.94 446.411 1061.9C424.873 1063.86 422.698 1030.98 444.453 1029.02C472.953 1027.06 500.583 1027.06 528.43 1027.06ZM528.43 580.483C572.593 580.483 617.845 582.66 662.226 585.709C683.764 586.797 681.806 619.675 660.268 618.587C616.104 615.539 572.811 613.361 528.647 613.361C454.678 613.361 380.492 618.587 307.611 629.909C286.073 632.957 281.94 600.079 303.478 597.031C376.141 585.709 452.285 580.483 528.43 580.483ZM197.311 615.539C218.849 611.402 225.158 644.28 203.402 648.417C148.796 659.739 95.495 675.198 43.0643 693.706C22.3965 700.891 12.1715 669.972 32.8392 662.787C85.27 644.28 140.746 628.82 197.311 615.539ZM784.492 65.9739C806.03 69.0222 801.896 101.9 780.358 98.852C747.507 93.6263 715.527 89.7071 682.676 85.3524C661.138 82.3041 665.272 49.426 686.81 52.4743C719.66 56.6113 751.641 60.7482 784.492 65.9739ZM873.037 127.593C894.575 132.819 888.483 165.697 866.945 160.471C824.739 151.109 782.534 143.052 740.546 136.738C718.79 133.69 723.141 100.812 744.679 103.86C788.625 110.174 830.831 118.448 873.037 127.593Z" fill="#000" opacity=".035"/></svg></div>
+
+        <div id="khead">
+          <div class="glow"></div>
+          <div class="pill"></div>
+          <svg class="logo" viewBox="410 295 660 111"><use href="#cwlogo"/></svg>
+        </div>
+        <nav id="crumbs"></nav>
+        <div id="screen"></div>
+        <div id="kfoot" class="hide"></div>
+        <div id="modal"></div>
+        <div id="pins"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Snapshot of the page source before anything renders, used to save a copy with comments embedded
+const ORIGINAL_HTML = '<!doctype html>\n' + document.documentElement.outerHTML;
+/* =========================================================
+   Icons (Lucide-style, 24px grid, stroke)
+   ========================================================= */
+const I = {
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',
+  right:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  down:'<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  up:'<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+  phone:'<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>',
+  call:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  bill:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  tower:'<path d="M4.9 16.1C1 12.2 1 5.8 4.9 1.9"/><path d="M7.8 4.7a6.14 6.14 0 0 0-.8 7.5"/><circle cx="12" cy="9" r="2"/><path d="M16.2 4.8c2 2 2.26 5.11.8 7.47"/><path d="M19.1 1.9a9.96 9.96 0 0 1 0 14.1"/><path d="M9.5 18h5"/><path d="m8 22 4-11 4 11"/>',
+  router:'<rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6.01 18H6"/><path d="M10.01 18H10"/><path d="M15 10v4"/><path d="M17.84 7.17a4 4 0 0 0-5.66 0"/><path d="M20.66 4.34a8 8 0 0 0-11.31 0"/>',
+  coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+  zap:'<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  updown:'<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  pkg:'<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="m7.5 4.27 9 5.15"/>',
+  social:'<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/>',
+  cal:'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>',
+  plane:'<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  card:'<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/>',
+  cash:'<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  wallet:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  qr:'<rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/>',
+  mail:'<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  sms:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>',
+  print:'<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  checkc:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  xc:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  del:'<path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/>',
+  eraser:'<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  warn:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  wifioff:'<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
+  ticket:'<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
+  send:'<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+  lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  nfc:'<path d="M6 8.32a7.43 7.43 0 0 1 0 7.36"/><path d="M9.46 6.21a11.76 11.76 0 0 1 0 11.58"/><path d="M12.91 4.1a15.91 15.91 0 0 1 .01 15.8"/><path d="M16.37 2a20.16 20.16 0 0 1 0 20"/>',
+  hourglass:'<path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>',
+  user:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  sim:'<path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><rect x="8" y="11" width="8" height="7" rx="1"/>',
+};
+const ic = (n, cls='') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${I[n]||''}</svg>`;
+const LOGO = (cls='') => `<svg class="${cls}" viewBox="410 295 660 111"><use href="#cwlogo"/></svg>`;
+const GLOBE = (cls='') => `<svg class="${cls}" viewBox="409 293 113 114"><use href="#cwlogo"/></svg>`;
+const face = i => {
+  const m = ['M8 17q4-4 8 0','M8.5 16.5q3.5-2 7 0','M8.5 16h7','M8.5 15q3.5 2.5 7 0','M7.5 14.5q4.5 5 9 0'][i];
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9 9.5h.01M15 9.5h.01" stroke-width="2.6"/><path d="${m}"/></svg>`;
+};
+
+/* =========================================================
+   Data — products from BRD; prices are placeholders
+   ========================================================= */
+const SERVICES = {
+  bill:  {t:'Bill Payment',       d:'Pay your bill by account number or QR code.', i:'bill'},
+  wbb:   {t:'Wireless Broadband', d:'Plans and boosters for wireless broadband.', i:'tower'},
+  home:  {t:'Home Broadband',     d:'GIGA Boosters for your home internet.', i:'router'},
+  topup: {t:'eTopUp',             d:'Add credit to a prepaid mobile number.', i:'coins'},
+  mobile:{t:'Mobile Boosters',    d:'Talktime, data, social media and more.', i:'phone'},
+};
+const CRUMBS = {
+  _:     ['Service','Details','Product','Payment','Thank You'],
+  bill:  ['Service','Account No.','Payment','Thank You'],
+  wbb:   ['Service','Service No.','Plan','Payment','Thank You'],
+  home:  ['Service','Booster','Username','Payment','Thank You'],
+  topup: ['Service','Ph. Number','Amount','Payment','Thank You'],
+  mobile:['Service','Ph. Number','Booster','Payment','Thank You'],
+};
+// crumb step keys per service, mapped to the labels above
+const CRUMB_KEYS = {
+  _:['svc','id','prod','pay','done'], bill:['svc','id','pay','done'], wbb:['svc','id','prod','pay','done'],
+  home:['svc','prod','id','pay','done'], topup:['svc','id','prod','pay','done'], mobile:['svc','id','prod','pay','done'],
+};
+const L = (name, price, v, sub) => ({name, price, v, sub});
+const CATS = {
+  talktime:{label:'Talktime Boosters', d:'Unlimited local calls', i:'call', title:'Select Required Talktime Booster', k:'Local Mins', rowIcon:'clock',
+    items:[L('1 Day / 24 Hours',40,'Unlimited','Talktime 40'),L('2 Days / 48 Hours',71,'Unlimited','Talktime 71'),L('7 Days / 1 Week',171,'Unlimited','Talktime 171')]},
+  data:{label:'Data Boosters', d:'Mobile data bundles', i:'updown', title:'Select Prepaid Mobile Data Booster', k:'Validity',
+    items:[L('1GB 1h SR18',18,'1 Hour'),L('DATA 50MB',10,'1 Day'),L('DATA 41',41,'3 Days'),L('1.3GB 1d SR48',48,'1 Day'),L('DATA 2GB',100,'7 Days'),L('DATA 141',141,'7 Days'),L('7GB 7d SR278',278,'7 Days'),L('DATA 5GB',200,'30 Days'),L('DATA 1GB',60,'7 Days'),L('DATA 7GB',250,'30 Days'),L('DATA 10GB',300,'30 Days'),L('DATA 12GB',350,'30 Days'),L('DATA 30GB',600,'30 Days'),L('DATA 65GB',1000,'30 Days'),L('Roaming 3GB 10d',450,'10 Days')]},
+  dataPost:{label:'Data Boosters', d:'Mobile data bundles', i:'updown', title:'Select Postpaid Mobile Data Booster', k:'Validity',
+    items:[L('DATA 50MB',10,'1 Day'),L('DATA 41',41,'3 Days'),L('1.3GB 1d SR48',48,'1 Day'),L('DATA 2GB',100,'7 Days'),L('DATA 141',141,'7 Days'),L('7GB 7d SR278',278,'7 Days'),L('DATA 5GB',200,'30 Days'),L('DATA 1GB',60,'7 Days'),L('DATA 7GB',250,'30 Days'),L('DATA 10GB',300,'30 Days'),L('DATA 12GB',350,'30 Days'),L('DATA 30GB',600,'30 Days'),L('DATA 65GB',1000,'30 Days')]},
+  interconnect:{label:'International Connect', d:'International voice minutes', i:'globe', title:'Select International Voice Booster', k:'Validity',
+    items:[L('Interconnect 7',7,'1 Day'),L('Interconnect 20',20,'7 Days'),L('Interconnect 30',30,'15 Days'),L('Interconnect 60',60,'30 Days')]},
+  jumbo:{label:'JUMBO Booster', d:'Data, calls and SMS combined', i:'pkg', title:'Select Required JUMBO Booster', k:'Validity',
+    items:[L('JUMBO Daily 91',91,'1 Day'),L('JUMBO Weekend 151',151,'Weekend'),L('JUMBO 271',271,'7 Days'),L('JUMBO 571',571,'30 Days'),L('JUMBO 771',771,'30 Days'),L('JUMBO 971',971,'30 Days'),L('JUMBO 991 5G',991,'30 Days')]},
+  social:{label:'Social Media Booster', d:'Data for your favourite apps', i:'social', title:'Select Social Media Booster', k:'Validity',
+    items:[L('1GB FB & Insta 1d SR28',28,'1 Day'),L('1GB YouTube 1d SR27',27,'1 Day'),L('1GB TikTok 1d SR23',23,'1 Day'),L('1GB WhatsApp 1d SR17',17,'1 Day'),L('Facebook DATA',20,'1 Day'),L('1GB Social Media Bundle',45,'1 Day')]},
+  socialPost:{label:'Social Media Booster', d:'Data for your favourite apps', i:'social', title:'Select Social Media Booster', k:'Validity',
+    items:[L('1GB WhatsApp 1d SR17',17,'1 Day'),L('Facebook DATA',20,'1 Day'),L('1GB Social Media Bundle',45,'1 Day')]},
+  validity:{label:'SIM Validity Extension', d:'Keep your number active', i:'cal', title:'Select SIM Validity Extension', sub:'Select the number of days you wish to extend your SIM validity.', k:'Extension',
+    items:[L('30 Days',25,'30 days'),L('180 Days',100,'180 days'),L('365 Days',180,'365 days')]},
+  mystay:{label:'MyStay Boosters', d:'Data for visitors on MyStay', i:'plane', title:'Select MyStay Booster', k:'Validity',
+    items:[L('Boost MyStay 6GB',300,'7 Days'),L('Boost MyStay 10GB',450,'7 Days'),L('Boost MyStay 15GB',600,'14 Days'),L('Boost MyStay 40GB',1000,'30 Days'),L('Boost MyStay 60GB',1300,'30 Days')]},
+  giga:{label:'GIGA Boosters', d:'Extra data for your home broadband', i:'zap', title:'Select the Desired GIGA Booster', k:'Validity',
+    items:[L('GIGA 6GB',100,'7 Days'),L('GIGA 35GB',350,'30 Days'),L('GIGA 60GB',500,'30 Days'),L('GIGA Unlimited 24',75,'24 Hours'),L('GIGA Unlimited 72',175,'72 Hours'),L('GIGA Unlimited 10 Days',450,'10 Days')]},
+  wbbPre:{title:'Select Prepaid Wireless Broadband Plan', k:'Validity', i:'tower',
+    items:[L('Wireless Unlimited 899',899,'30 Days'),L('Wireless Unlimited 1299',1299,'30 Days'),L('Wireless Unlimited 1599',1599,'30 Days'),L('5G Wireless Unlimited 1055',1055,'30 Days'),L('5G Wireless Unlimited 1455',1455,'30 Days'),L('5G Wireless Unlimited 1755',1755,'30 Days')]},
+  wbbPost:{title:'Select Wireless Broadband Booster', k:'Data', i:'tower',
+    items:[L('Xtra 1GB',50,'1GB'),L('Xtra 5GB',150,'5GB'),L('Xtra 10GB',250,'10GB')]},
+  topup:{title:'Select eTopUp Amount', sub:'Choose the amount of credit to add to your number.', k:'Credit Added', i:'coins',
+    items:[10,25,50,100,200,300,500,1000,1500].map(a => L(`eTopUp ${a.toLocaleString('en-US')}`, a, `SCR ${a.toLocaleString('en-US')}`))},
+};
+// Booster types shown after the number lookup (BRD 1.3.6.1, 1.3.6.2, 1.3.7) — one flat list per number type
+const MOBILE_MENU = {
+  prepaid:[['talktime','Talktime Boosters'],['data','Data Boosters'],['interconnect','InterConnect Booster'],['jumbo','JUMBO Booster'],['social','Social Media Booster'],['validity','SIM Validity Extension Booster']],
+  postpaid:[['data','Data Boosters'],['interconnect','International Connect'],['social','Social Media Booster']],
+  tourist:[['mystay','MyStay Boosters'],['interconnect','InterConnect Boosters']],
+};
+// Demo numbers to share with the client; any other number falls back to the presenter panel setting
+const DEMO_NUMBERS = {'2111111':'prepaid', '2222222':'postpaid', '2333333':'tourist'};
+const ID_CFG = {
+  mobile:{title:'Enter Phone Number', sub:'Please enter your 7-digit phone number below.', len:7, label:'Phone Number', ph:'e.g. 251 2345',
+    ins:['Please ensure that you enter the correct number.','You may dial #126# using your phone to verify your phone number.','CWS will not be responsible for any wrong entry.']},
+  topup:{title:'Enter Phone Number', sub:'Please enter the 7-digit prepaid number you want to top up.', len:7, label:'Phone Number', ph:'e.g. 251 2345',
+    ins:['Please ensure that you enter the correct number.','You may dial #126# using your phone to verify your phone number.','CWS will not be responsible for any wrong entry.']},
+  bill:{title:'Enter Account Number', sub:'Please enter the 12-digit account number located at the top of your bill.', len:12, label:'Account Number', ph:'0000 0000 0000', qr:true,
+    ins:['The account number is at the top of each page of your bill.','Tap the QR icon to scan the QR code on your bill instead.','Mobile customers can dial #155# to check their outstanding amount.']},
+  wbb:{title:'Enter Service Number', sub:'Please enter your Wireless Broadband service number.', len:8, label:'Service Number', ph:'0000 0000',
+    ins:['Your service number is shown on your bill and router label.','Please ensure that you enter the correct number.','CWS will not be responsible for any wrong entry.']},
+  home:{title:'Enter Broadband Username', sub:'Please enter your broadband username below.', text:true, label:'Username', ph:'username',
+    ins:['Your username is shown on your bill and welcome letter.','Please ensure that you enter the correct username.','CWS will not be responsible for any wrong entry.']},
+};
+const OUTSTANDING = 1245.50, DUE = '15 Nov 2026', SUPPORT = '01234567', KIOSK_REF = 'KSK-VIC-014';
+
+/* =========================================================
+   State
+   ========================================================= */
+const SC = {display: innerHeight < 1920 ? 'fit' : 'actual', mobile:'prepaid', wbb:'prepaid', card:'approved', fulfil:'success', ebooRes:'success', svc:'online', lookup:'ok', cashHw:'on', printer:'ok'};
+let rejectNext = false;
+const S = {};
+function resetState(){
+  for (const k in S) delete S[k];
+  Object.assign(S, {lang:'en', service:null, buf:'', id:'', verified:false, verifying:false, cust:null, cat:null,
+    product:null, amount:0, method:null, inserted:0, notes:[], rejects:0, busy:false, txn:null, voucher:null,
+    receiptFor:'payment', receipt:null, email:'', sms:'', paid:false});
+}
+resetState();
+
+const $ = (s, r=document) => r.querySelector(s);
+const kiosk = $('#kiosk'), screenEl = $('#screen'), footEl = $('#kfoot'), modalEl = $('#modal'), crumbsEl = $('#crumbs');
+const fmt = n => 'SCR ' + Number(n).toLocaleString('en-US', {minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2});
+const total = () => S.method === 'cash' ? Math.ceil(S.amount) : S.amount;
+const fmtId = (svc, v) => {
+  if (!v) return v;
+  if (svc === 'bill') return v.replace(/(\d{4})(?=\d)/g, '$1 ');
+  if (svc === 'wbb') return v.replace(/^(\d{4})(?=\d)/, '$1 ');
+  if (svc === 'mobile' || svc === 'topup' || svc === 'sms') return v.replace(/^(\d{3})(?=\d)/, '$1 ');
+  return v;
+};
+const pname = p => p ? (p.sub ? `${p.sub} · ${p.name}` : p.name) : '';
+const custLabel = () => S.service === 'bill' ? '' : ({prepaid:'Prepaid', postpaid:'Postpaid', tourist:'Tourist (MyStay)'}[S.cust] || '');
+const rid = (p, n) => p + Array.from({length:n}, () => Math.floor(Math.random()*10)).join('');
+
+/* timers scoped to the current screen / modal */
+let timers = [], mtimers = [];
+const later = (fn, ms) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+const every = (fn, ms) => { const t = setInterval(fn, ms); timers.push(t); return t; };
+const mlater = (fn, ms) => { const t = setTimeout(fn, ms); mtimers.push(t); return t; };
+const mevery = (fn, ms) => { const t = setInterval(fn, ms); mtimers.push(t); return t; };
+const clearT = () => { timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = []; };
+const clearMT = () => { mtimers.forEach(t => { clearTimeout(t); clearInterval(t); }); mtimers = []; };
+
+function toast(msg){
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  kiosk.appendChild(t); setTimeout(() => t.remove(), 2700);
+}
+function tween(el, from, to, ms=600){
+  const t0 = performance.now();
+  const step = now => {
+    const p = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(Math.round(from + (to - from) * e));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  setTimeout(() => { el.textContent = fmt(to); }, ms + 80);
+}
+function qrSvg(seed, n=25){
+  let s = seed;
+  const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  const finder = (x, y) => `<rect x="${x}" y="${y}" width="7" height="7"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3"/>`;
+  let r = '';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    if ((x < 8 && y < 8) || (x >= n-8 && y < 8) || (x < 8 && y >= n-8)) continue;
+    if (rnd() > .5) r += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  }
+  return `<svg viewBox="-1 -1 ${n+2} ${n+2}" shape-rendering="crispEdges" style="width:100%;height:100%"><rect x="-1" y="-1" width="${n+2}" height="${n+2}" fill="#fff"/><g fill="#000">${r}${finder(0,0)}${finder(n-7,0)}${finder(0,n-7)}</g></svg>`;
+}
+
+/* =========================================================
+   Router
+   ========================================================= */
+const screens = {};
+let cur = 'splash', H = [];
+function go(name, dir='fwd'){
+  if (dir === 'fwd' && cur && !screens[cur].transient) H.push(cur);
+  cur = name; render(dir);
+}
+function replace(name){ cur = name; render('fade'); }
+function back(){
+  const sc = screens[cur];
+  if (sc.onBack && sc.onBack() === false) return;
+  const prev = H.pop(); if (!prev) return;
+  cur = prev; render('back');
+}
+function backTo(name){
+  while (H.length && H[H.length-1] !== name) H.pop();
+  if (H.length) H.pop();
+  cur = name; render('back');
+}
+function goHome(){ resetState(); H = []; cur = 'splash'; render('fade'); }
+
+function render(dir='fwd'){
+  clearT(); closeModal();
+  const sc = screens[cur];
+  kiosk.classList.toggle('no-chrome', sc.chrome === false);
+  kiosk.classList.toggle('no-crumbs', !sc.crumb);
+  screenEl.innerHTML = `<div class="scr ${dir}">${sc.render()}</div>`;
+  renderCrumbs(sc.crumb);
+  renderFoot(sc.foot ? sc.foot() : null);
+  $('#curName').textContent = sc.name || cur;
+  sc.mount && sc.mount(screenEl.firstChild);
+  cmRender();
+  idleReset();
+}
+function renderCrumbs(key){
+  if (!key) return;
+  const svc = S.service || '_';
+  const labels = CRUMBS[svc], keys = CRUMB_KEYS[svc];
+  const idx = keys.indexOf(key);
+  crumbsEl.innerHTML = `<button class="home" data-act="home">${ic('home')}</button>` +
+    labels.map((l, i) => `<span class="chev">${ic('chev')}</span><span class="ci ${i === idx ? 'on' : i < idx ? 'done' : ''}">${l}</span>`).join('');
+}
+function renderFoot(f){
+  if (!f){ footEl.classList.add('hide'); return; }
+  footEl.classList.remove('hide');
+  footEl.innerHTML =
+    (f.back !== false ? `<button class="btn btn-outline fb l" data-act="back">${f.back || 'Back'}</button>` : '') +
+    `<button class="fhome" data-act="home" aria-label="Home">${ic('home')}</button>` +
+    (f.next ? `<button class="btn btn-primary fb r" id="nextBtn" data-act="next" ${f.disabled ? 'disabled' : ''}>${f.next}${f.noArrow ? '' : ic('right','')}</button>` : '');
+}
+function setNext(on, pulse){
+  const nb = $('#nextBtn'); if (!nb) return;
+  nb.disabled = !on; nb.classList.toggle('pulse', !!(on && pulse));
+}
+
+/* =========================================================
+   Modal
+   ========================================================= */
+let M = {actions:[], onClose:null};
+function modal({icon, tone='', title, text, html='', actions=[], close=true, onClose=null, cls=''}){
+  clearMT();
+  M = {actions, onClose};
+  modalEl.innerHTML = `<div class="sheet ${cls}">
+    ${close ? `<button class="sheet-x" data-act="mclose">${ic('x')}</button>` : ''}
+    ${icon ? `<div class="sheet-ic ${tone}">${ic(icon)}</div>` : ''}
+    ${title ? `<h2>${title}</h2>` : ''}${text ? `<p>${text}</p>` : ''}${html}
+    ${actions.length ? `<div class="sheet-actions">${actions.map((a, i) => `<button class="btn ${a.primary ? 'btn-primary' : 'btn-outline'}" data-act="m" data-i="${i}" ${a.id ? `id="${a.id}"` : ''} ${a.disabled ? 'disabled' : ''}>${a.label}</button>`).join('')}</div>` : ''}
+  </div>`;
+  modalEl.classList.add('open');
+  return modalEl.firstChild;
+}
+function closeModal(){ clearMT(); modalEl.classList.remove('open'); modalEl.innerHTML = ''; }
+
+/* =========================================================
+   Shared building blocks
+   ========================================================= */
+const titleBlock = (t, s, cls='') => `<div class="${cls}"><div class="t-h">${t}</div>${s ? `<div class="t-s">${s}</div>` : ''}</div>`;
+function keypad(opt={}){
+  const k = ['1','2','3','4','5','6','7','8','9'].map(d => `<button class="key" data-act="key" data-k="${d}">${d}</button>`).join('');
+  const left = opt.dot ? `<button class="key fn" data-act="key" data-k=".">.</button>` : `<button class="key fn" data-act="key" data-k="clr">${ic('eraser')}</button>`;
+  return `<div class="keypad">${k}${left}<button class="key" data-act="key" data-k="0">0</button><button class="key fn" data-act="key" data-k="del">${ic('del')}</button></div>`;
+}
+function keyboard(email){
+  const rows = [
+    '1234567890'.split(''), 'qwertyuiop'.split(''), 'asdfghjkl'.split(''), 'zxcvbnm'.split(''),
+  ];
+  const kb = (k, cls='') => `<button class="key ${cls}" data-act="kb" data-k="${k}">${k}</button>`;
+  return `<div class="kbd">
+    ${rows.slice(0,3).map(r => `<div class="kr">${r.map(k => kb(k)).join('')}</div>`).join('')}
+    <div class="kr">${rows[3].map(k => kb(k)).join('')}${kb('.', '')}${kb('-', '')}<button class="key fn w2" data-act="kb" data-k="del">${ic('del')}</button></div>
+    <div class="kr">${email ? kb('@','w2') + kb('_') + kb('.com','w2') + kb('.sc','w2') : kb('_') + kb('@')}<button class="key fn ${email ? 'w2' : 'w3'}" data-act="kb" data-k="clr">Clear</button></div>
+  </div>`;
+}
+function instr(list){
+  return `<div class="instr"><div class="ih">${ic('info')} Instructions</div><ul>${list.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
+}
+function scrollHint(root){
+  const sc = root.querySelector('.scroll'), more = root.querySelector('.more');
+  if (!sc || !more) return;
+  const upd = () => { more.style.opacity = sc.scrollHeight - sc.scrollTop - sc.clientHeight > 40 ? 1 : 0; };
+  sc.addEventListener('scroll', upd); upd();
+}
+
+const tile = ({act, v, icon, t, d, cls='', delay=0, style=''}) =>
+  `<button class="tile ${cls}" style="animation-delay:${delay}ms;${style}" data-act="${act}" data-v="${v}">${GLOBE('wm')}<span class="tr"><span class="ib">${ic(icon)}</span><span class="go">${ic('right')}</span></span><span class="tt">${t}</span>${d ? `<span class="td">${d}</span>` : ''}</button>`;
+const noteHtml = (d, coin, cls='') => coin
+  ? `<div class="bill-note coin ${cls}"><span class="nv">${d}</span></div>`
+  : `<div class="bill-note ${cls}" ${cls === 'idle' ? 'id="ghost"' : ''}>${GLOBE('nw')}<span class="nv">${d || 'SCR'}</span><span class="ns">C&amp;W · SCR</span></div>`;
+const SPIN = '<span class="spin"></span>';
+
+/* =========================================================
+   Screens
+   ========================================================= */
+/* A globe drawn in the logo's dash style, spinning about its vertical axis (front to back). */
+function startGlobe(cv){
+  const W = 1000, H = 1016, R = 470, cx = 500, cy = 508, D = Math.PI / 180;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr); g.lineCap = 'round';
+  let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const rows = [];
+  for (let y = -R + 18; y <= R - 18; y += 32){
+    const segs = []; let lon = rnd() * 20;
+    while (lon < 360){ const len = 10 + rnd() * 34; segs.push([lon, Math.min(lon + len, 360)]); lon += len + 7 + rnd() * 12; }
+    rows.push({y: cy + y, r: Math.sqrt(R * R - y * y), segs});
+  }
+  let rot = 0, last = performance.now();
+  (function frame(now){
+    if (!cv.isConnected) return;
+    rot = (rot + (now - last) * 0.014) % 360; last = now;
+    g.clearRect(0, 0, W, H);
+    g.lineWidth = 15;
+    for (const row of rows){
+      for (const [a, b] of row.segs){
+        const t1 = ((a + rot) % 360 + 540) % 360 - 180, t2 = t1 + (b - a);   // 0° faces the viewer
+        const f1 = Math.max(t1, -90), f2 = Math.min(t2, 90);
+        if (f1 >= f2) continue;
+        const depth = Math.cos((f1 + f2) / 2 * D);
+        g.strokeStyle = `rgba(0,107,182,${(0.18 + 0.82 * depth).toFixed(3)})`;
+        g.beginPath();
+        g.moveTo(cx + row.r * Math.sin(f1 * D), row.y);
+        g.lineTo(cx + row.r * Math.sin(f2 * D), row.y);
+        g.stroke();
+      }
+    }
+    requestAnimationFrame(frame);
+  })(last);
+}
+
+screens.splash = {
+  name:'Welcome', chrome:false, transient:false,
+  render(){
+    return `<div class="splash">
+      ${LOGO('sp-logo')}
+      <h1>Welcome to<br><em>Cable &amp; Wireless</em></h1>
+      <p>Top up, buy boosters and pay your bills in a few taps.</p>
+      <button class="btn btn-primary go" data-act="start">Get Started ${ic('right')}</button>
+      <div class="globe"><canvas id="globeCv"></canvas></div>
+    </div>`;
+  },
+  mount(){ startGlobe($('#globeCv')); },
+  act(a){ if (a === 'start') go('lang'); }
+};
+
+screens.lang = {
+  name:'Language selection',
+  render(){
+    const langs = [['kr','KR','Kreol Seselwa','Mon kontan servi Kreol'],['en','EN','English','Continue in English'],['fr','FR','Français','Continuer en français']];
+    return `<div class="lang">
+      <div class="content">${titleBlock('Select Your Language','Choose your preferred language to continue.')}</div>
+      <div class="scroll" style="top:700px"><div class="opts">${langs.map(([v, b, t, s], i) =>
+        `<div class="opt-w ${S.lang === v ? 'sel' : ''}" style="animation-delay:${i * 70}ms"><button class="opt" data-act="lang" data-v="${v}">${GLOBE('wm')}
+          <span class="ol"><span class="oi">${b}</span><span>${t}<span class="os">${s}</span></span></span></button></div>`).join('')}
+      </div></div></div>`;
+  },
+  foot(){ return {}; },
+  act(a, el){
+    if (a !== 'lang' || S.langPicked) return;
+    S.lang = el.dataset.v; S.langPicked = true;
+    screenEl.querySelectorAll('.opt-w').forEach(w => w.classList.toggle('sel', w.contains(el)));
+    if (S.lang !== 'en') toast('Prototype copy is shown in English');
+    later(() => { S.langPicked = false; go('service'); }, 450);
+  }
+};
+
+screens.service = {
+  name:'Service selection', crumb:'svc',
+  render(){
+    const keys = Object.keys(SERVICES);
+    return `<div class="content">${titleBlock('Select The Desired Service','Choose the service you want to use from the list below.')}
+      <div class="tiles">${keys.map((k, i) => tile({act:'svc', v:k, icon:SERVICES[k].i, t:SERVICES[k].t, d:SERVICES[k].d, delay:i * 60,
+        cls: keys.length % 2 && i === keys.length - 1 ? 'lone' : ''})).join('')}</div></div>`;
+  },
+  foot(){ return {}; },
+  act(a, el){
+    if (a !== 'svc') return;
+    if (SC.svc === 'down') return modal({icon:'wifioff', tone:'bad', title:'Service Unavailable!', text:`This service is currently unavailable. For any queries please reach out to our customer service at ${SUPPORT}.`,
+      actions:[{label:'Back', primary:true, fn:() => {}}]});
+    const keepLang = S.lang; resetState(); S.lang = keepLang;
+    S.service = el.dataset.v;
+    go(S.service === 'home' ? 'menu' : 'idEntry');
+  }
+};
+
+/* ---------- ID entry: phone / account / service number / username ---------- */
+screens.idEntry = {
+  get name(){ return ID_CFG[S.service].title; },
+  crumb:'id',
+  render(){
+    const c = ID_CFG[S.service];
+    if (!S.verified) S.buf = S.buf || '';
+    return `<div class="content">${titleBlock(c.title, c.sub)}
+      <div class="field focus ${c.text ? '' : ''}" id="fld"><span id="fval"></span>${c.qr ? `<button class="fbtn" data-act="qr">${ic('qr')}</button>` : ''}</div>
+      <div class="vline" id="vline"></div>
+      ${instr(c.ins)}
+      ${c.text ? keyboard(false) : keypad()}
+    </div>`;
+  },
+  foot(){ return {next:'Continue', disabled:!S.verified}; },
+  mount(){ this.update(); },
+  update(){
+    const c = ID_CFG[S.service];
+    $('#fval').innerHTML = S.buf ? `${fmtId(S.service, S.buf)}<span class="caret"></span>` : `<span class="ph">${c.ph}</span><span class="caret"></span>`;
+    $('#fld').classList.toggle('ok', S.verified);
+    $('#fld').classList.toggle('bad', !!S.lookupErr);
+    const v = $('#vline');
+    if (S.verifying){ v.className = 'vline'; v.innerHTML = `<span class="spin"></span> Verifying ${c.label.toLowerCase()}…`; }
+    else if (S.lookupErr){ v.className = 'vline bad'; v.innerHTML = `${ic('xc')} ${S.lookupErr === 'inactive'
+      ? `This ${c.label.toLowerCase()} is not active. Please call customer service on ${SUPPORT}.`
+      : `${c.label} not found. Please check and try again.`}`; }
+    else if (S.verified){ v.className = 'vline ok'; v.innerHTML = `${ic('checkc','ok-in')} ${this.okMsg()}`; }
+    else if (c.text){ v.className = 'vline'; v.innerHTML = S.buf.length ? 'Tap Continue to verify your username' : ''; }
+    else { v.className = 'vline'; v.innerHTML = S.buf.length ? `${S.buf.length} of ${c.len} digits` : ''; }
+    setNext(c.text ? S.buf.length >= 3 && !S.verifying : S.verified, S.verified);
+  },
+  okMsg(){
+    switch (S.service){
+      case 'mobile': return S.cust === 'tourist' ? 'You have entered a TOURIST (MyStay) mobile number' : `You have entered a ${S.cust.toUpperCase()} mobile number`;
+      case 'topup':  return 'You have entered a PREPAID mobile number';
+      case 'wbb':    return `You have entered a ${S.cust.toUpperCase()} Wireless Broadband number`;
+      case 'bill':   return `Account found · Outstanding balance ${fmt(OUTSTANDING)}`;
+      case 'home':   return 'Broadband account found · Active';
+    }
+  },
+  verify(then){
+    S.verifying = true; S.lookupErr = null; this.update();
+    later(() => {
+      S.verifying = false;
+      if (SC.lookup !== 'ok'){ S.lookupErr = SC.lookup; S.verified = false; return this.update(); }
+      S.verified = true; S.id = S.buf;
+      S.cust = S.service === 'mobile' ? (DEMO_NUMBERS[S.buf] || SC.mobile) : S.service === 'wbb' ? SC.wbb : S.service === 'topup' ? 'prepaid' : S.service === 'home' ? 'prepaid' : null;
+      this.update(); then && later(then, 900);
+    }, 1000);
+  },
+  act(a, el){
+    const c = ID_CFG[S.service];
+    if (S.verifying) return;
+    if (a === 'key' || a === 'kb'){
+      const k = el.dataset.k;
+      if (k === 'del') S.buf = S.buf.slice(0, -1);
+      else if (k === 'clr') S.buf = '';
+      else if (c.text){ if (S.buf.length < 24) S.buf += k; }
+      else if (S.buf.length < c.len) S.buf += k;
+      S.verified = false; S.lookupErr = null; this.update();
+      if (!c.text && S.buf.length === c.len) this.verify();
+    }
+    if (a === 'qr') this.scan();
+  },
+  next(){
+    const c = ID_CFG[S.service];
+    if (c.text && !S.verified) return this.verify(() => this.advance());
+    this.advance();
+  },
+  advance(){
+    switch (S.service){
+      case 'mobile': return go('menu');
+      case 'topup':  S.cat = 'topup'; return go('options');
+      case 'wbb':    S.cat = S.cust === 'postpaid' ? 'wbbPost' : 'wbbPre'; return go('options');
+      case 'home':   return go('method');
+      case 'bill':   return this.disclaimer();
+    }
+  },
+  disclaimer(){
+    modal({title:'Disclaimer!', html:`<ul class="disc">
+        <li>${ic('info')}<span>The amount will be paid against the <b>oldest outstanding bill</b> with C&amp;W, which may not be the most recent bill.</span></li>
+        <li>${ic('call')}<span>Mobile customers can dial <b>#155#</b> and select Bill Query to find out the outstanding amount.</span></li>
+        <li>${ic('cal')}<span>To avoid service restrictions, it is advisable to pay the <b>full outstanding amount</b> by the payment due date.</span></li>
+      </ul>`, actions:[{label:'Continue', primary:true, fn:() => go('method')}]});
+  },
+  scan(){
+    modal({html:`<div class="scan-stage" id="scanSt">
+        <div class="paperbill"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">${GLOBE('')}<span style="font-size:14px;font-weight:700;color:#006BB6">BILL</span></div>
+          <div class="bl" style="width:80%"></div><div class="bl" style="width:60%"></div><div class="bl" style="width:70%"></div>
+          <div class="qrw">${qrSvg(77, 21)}</div></div>
+        <div class="scan-win"><i></i><i></i><i></i><i></i></div><div class="laser"></div>
+        <div class="scan-ok">${ic('checkc')}</div></div>
+        <p id="scanMsg">Scan the bill QR code to fetch the account number.<br>Hold your bill under the scanner below the screen.</p>`,
+      actions:[{label:'Manually Enter Account Number', fn:() => {}}]});
+    modalEl.querySelector('.paperbill svg').style.cssText = 'width:44px;height:44px';
+    mlater(() => { const st = $('#scanSt'); st && st.classList.add('ok'); const m = $('#scanMsg'); if (m) m.innerHTML = '<b style="color:#0A8A3E">QR code detected</b> · Account number found'; }, 3000);
+    mlater(() => { closeModal(); S.buf = '204815367290'; S.verified = false; this.update(); this.verify(); }, 4200);
+  }
+};
+
+/* ---------- Product menus (mobile categories, home broadband) ---------- */
+screens.menu = {
+  get name(){ return S.service === 'home' ? 'Home Broadband products' : `Mobile products (${S.cust})`; },
+  crumb:'prod',
+  render(){
+    if (S.service === 'home'){
+      return `<div class="content">${titleBlock('Select The Desired Home Broadband','Choose the product you want to use from the list below.')}
+        <div class="tiles">${tile({act:'cat', v:'giga', icon:'zap', t:'GIGA Boosters', d:'Extra data and unlimited passes for your home internet.', cls:'lone'})}</div></div>`;
+    }
+    const list = MOBILE_MENU[S.cust] || MOBILE_MENU.prepaid;
+    const head = {prepaid:'Select The Desired Prepaid Booster', postpaid:'Select The Desired Postpaid Booster', tourist:'Select The Desired Mobile Booster'}[S.cust];
+    return `<div class="content">${titleBlock(head, `Boosters available for ${custLabel().toLowerCase()} number ${fmtId('mobile', S.id)}.`)}
+      <div class="tiles ${list.length > 4 ? 'compact' : ''}">${list.map(([k, label], i) => { const c = CATS[k];
+        return tile({act:'cat', v:k, icon:c.i, t:label, d:c.d, delay:i * 60, cls: list.length % 2 && i === list.length - 1 ? 'lone' : ''});
+      }).join('')}</div></div>`;
+  },
+  foot(){ return {}; },
+  act(a, el){
+    if (a !== 'cat') return;
+    let k = el.dataset.v;
+    if (S.cust === 'postpaid' && k === 'data') k = 'dataPost';
+    if (S.cust === 'postpaid' && k === 'social') k = 'socialPost';
+    S.cat = k; S.product = null;
+    const w = el.closest('.opt-w'); if (w){ w.classList.add('sel'); return later(() => go('options'), 250); }
+    go('options');
+  }
+};
+
+/* ---------- Options list ---------- */
+screens.options = {
+  get name(){ return CATS[S.cat].title; },
+  crumb:'prod',
+  render(){
+    const c = CATS[S.cat];
+    const sub = c.sub || 'Choose the booster you want to use from the options below.';
+    return `<div class="content">${titleBlock(c.title, sub)}</div>
+      <div class="scroll"><div class="opts">${c.items.map((it, i) => `
+        <div class="opt-w ${S.product && S.product.name === it.name ? 'sel' : ''}" style="animation-delay:${Math.min(i, 6) * 60}ms">
+          <button class="opt" data-act="opt" data-i="${i}">${GLOBE('wm')}<span class="ol"><span class="oi">${ic(c.rowIcon || c.i)}</span><span>${it.name}${it.sub ? `<span class="os">${it.sub}</span>` : ''}</span></span><span class="op"><small>SCR</small>${it.price.toLocaleString('en-US')}</span></button>
+          ${S.cat === 'topup' ? '' : `<div class="opt-d"><div class="c"><small>Price (Incl. VAT)</small><b>${fmt(it.price)}</b></div><div class="c r"><small>${c.k}</small><b>${it.v}</b></div></div>`}
+        </div>`).join('')}</div></div>
+      <div class="more">Scroll for more options ${ic('down')}</div>`;
+  },
+  foot(){ return {next:'Continue', disabled:!S.product}; },
+  mount(root){ scrollHint(root); },
+  act(a, el){
+    if (a !== 'opt') return;
+    S.product = CATS[S.cat].items[+el.dataset.i];
+    screenEl.querySelectorAll('.opt-w').forEach(w => w.classList.toggle('sel', w.contains(el)));
+    const sc = el.closest('.scroll'), w = el.parentElement;
+    setTimeout(() => { const bottom = w.offsetTop + 330; if (bottom > sc.scrollTop + sc.clientHeight - 100) sc.scrollTo({top: bottom - sc.clientHeight + 110, behavior:'smooth'}); }, 60);
+    setNext(true, true);
+  },
+  next(){
+    S.amount = S.product.price;
+    go(S.service === 'home' ? 'idEntry' : 'method');
+  }
+};
+
+/* ---------- Payment method ---------- */
+screens.method = {
+  name:'Payment method', crumb:'pay',
+  render(){
+    const m = [['card','By Card','Insert, tap or swipe on the card terminal'],['cash','By Cash','Notes and coins accepted']];
+    m.push(['eboo','Eboo Wallet','Scan a QR code with the Eboo app']);
+    const icons = {card:'card', cash:'cash', eboo:'wallet'};
+    return `<div class="content">${titleBlock('Select Payment Method', "Choose how you'd like to pay for your service.")}
+      ${S.service === 'bill'
+        ? `<div class="amt-band"><span>Outstanding balance<br><small style="font-size:24px">Due ${DUE} · you can pay a custom amount next</small></span><b>${fmt(OUTSTANDING)}</b></div>`
+        : `<div class="amt-band"><span>${pname(S.product)}</span><b>${fmt(S.amount)}</b></div>`}
+      <div class="tiles" style="margin-top:56px">${m.map(([k, t, d], i) =>
+        tile({act:'pm', v:k, icon:icons[k], t, d, delay:i * 70, style:'height:340px', cls: m.length === 3 && i === 2 ? 'lone' : ''})).join('')}</div>
+    </div>`;
+  },
+  foot(){ return {}; },
+  act(a, el){
+    if (a !== 'pm') return;
+    if (el.dataset.v === 'cash' && SC.cashHw === 'off') return modal({icon:'cash', tone:'bad', title:'Cash Payment Unavailable',
+      text:'The cash acceptor is currently out of service. Please pay by card or Eboo wallet.', actions:[{label:'Choose Another Method', primary:true, fn:() => {}}]});
+    S.ebooTries = 0;
+    S.method = el.dataset.v; S.inserted = 0; S.notes = []; S.rejects = 0;
+    if (S.service === 'bill') return go('billAmount');
+    go(S.method === 'cash' ? 'cashInsert' : 'summary');
+  }
+};
+
+/* ---------- Bill amount (editable) ---------- */
+screens.billAmount = {
+  name:'Bill amount', crumb:'pay',
+  render(){
+    if (!S.amtTouched) S.buf = S.method === 'cash' ? String(Math.ceil(OUTSTANDING)) : OUTSTANDING.toFixed(2);
+    return `<div class="content">${titleBlock('Enter Amount to Pay', 'The full outstanding balance is shown. You can change the amount.')}
+      <div class="amt-band" style="margin-top:40px"><span>Account ${fmtId('bill', S.id)}<br><small style="font-size:24px">Outstanding · due ${DUE}</small></span><b>${fmt(OUTSTANDING)}</b></div>
+      <div class="field focus" id="fld" style="margin-top:36px"><span class="pre">SCR</span><span id="fval"></span></div>
+      <div class="vline" id="vline"></div>
+      ${keypad({dot: S.method !== 'cash'})}
+    </div>`;
+  },
+  foot(){ return {next:'Continue'}; },
+  mount(){ this.update(); },
+  update(){
+    $('#fval').innerHTML = (S.buf || '<span class="ph">0</span>') + '<span class="caret"></span>';
+    const v = +S.buf || 0, line = $('#vline');
+    if (!v){ line.className = 'vline bad'; line.innerHTML = `${ic('info')} Please enter an amount`; }
+    else if (v < OUTSTANDING){ line.className = 'vline warn'; line.innerHTML = `${ic('warn')} Partial payment: the full outstanding must be paid by ${DUE}.`; }
+    else { line.className = 'vline ok'; line.innerHTML = `${ic('checkc')} ${S.method === 'cash' ? 'Cash amounts are rounded up to the nearest rupee.' : 'Paying the full outstanding balance.'}`; }
+    setNext(v > 0);
+  },
+  act(a, el){
+    if (a !== 'key') return;
+    const k = el.dataset.k; S.amtTouched = true;
+    if (k === 'del') S.buf = S.buf.slice(0, -1);
+    else if (k === 'clr') S.buf = '';
+    else if (k === '.'){ if (!S.buf.includes('.')) S.buf = (S.buf || '0') + '.'; }
+    else {
+      if (S.buf.includes('.') && S.buf.split('.')[1].length >= 2) return;
+      if (S.buf.replace('.', '').length >= 7) return;
+      S.buf = (S.buf === '0' ? '' : S.buf) + k;
+    }
+    this.update();
+  },
+  onBack(){ S.amtTouched = false; },
+  next(){ S.amount = +S.buf; S.amtTouched = false; go(S.method === 'cash' ? 'cashInsert' : 'summary'); }
+};
+
+/* ---------- Cash insertion ---------- */
+screens.cashInsert = {
+  name:'Insert cash', crumb:'pay',
+  render(){
+    return `<div class="content">${titleBlock('Insert Cash','Please insert cash to proceed.')}
+      <div class="cash-total" style="margin-top:24px"><small>Total amount</small><b>${fmt(total())}</b></div>
+      <div class="acceptor" id="acc">
+        <div class="acc-face"></div><div class="acc-led"></div><div class="acc-txt">INSERT NOTES</div>
+        <div class="acc-slot"></div>
+        <div class="lane" id="lane">${noteHtml(0, false, 'idle')}</div>
+      </div>
+      <div class="acc-status" id="accSt">Waiting for cash…</div>
+      <div class="ins-box"><div class="ins-top"><span>Cash inserted <b id="insAmt">${fmt(S.inserted)}</b></span><span>Remaining <b id="remAmt">${fmt(Math.max(0, total() - S.inserted))}</b></span></div>
+        <div class="bar"><i id="bar"></i></div><div class="ins-list" id="insList"></div></div>
+      <div class="denoms"><p>Currency denominations accepted</p>
+        <div class="chips">${['25','50','100','500'].map(d => `<span class="chip">${d}</span>`).join('')}<span class="chip">${ic('coins')} Coins</span></div></div>
+      <div class="ins-btns" id="insBtns"><button class="btn btn-primary" data-act="insNote">${ic('cash')} Insert Cash</button><button class="btn btn-outline" data-act="insCoin">${ic('coins')} Insert Coin</button></div>
+    </div>`;
+  },
+  foot(){ return {back:'Cancel', next:'Continue', disabled:S.inserted < total()}; },
+  mount(){ this.refresh(false); },
+  refresh(anim=true, prev=0){
+    const t = total(), done = S.inserted >= t;
+    anim ? tween($('#insAmt'), prev, S.inserted) : ($('#insAmt').textContent = fmt(S.inserted));
+    $('#remAmt').textContent = fmt(Math.max(0, t - S.inserted));
+    const bar = $('#bar'); bar.style.width = Math.min(100, S.inserted / t * 100) + '%'; bar.classList.toggle('full', done);
+    const counts = {}; S.notes.forEach(n => counts[n] = (counts[n] || 0) + 1);
+    $('#insList').innerHTML = Object.keys(counts).sort((a, b) => (a[0] < b[0]) - (a[0] > b[0]) || b.slice(1) - a.slice(1))
+      .map(k => `<span>${k[0] === 'c' ? 'Coin ' : ''}${k.slice(1)} × ${counts[k]}</span>`).join('');
+    $('#insBtns').classList.toggle('off', done);
+    $('#acc').classList.toggle('okd', done);
+    $('#ghost').style.display = done ? 'none' : '';
+    const st = $('#accSt');
+    if (done){ st.className = 'acc-status ok'; st.textContent = S.inserted > t ? `Full amount received · ${fmt(S.inserted - t)} over` : 'Full amount received'; }
+    else if (S.inserted){ st.className = 'acc-status'; st.textContent = 'Please insert the remaining amount'; }
+    setNext(done, done);
+  },
+  act(a){
+    if ((a !== 'insNote' && a !== 'insCoin') || S.busy) return;
+    const rem = total() - S.inserted; if (rem <= 0) return;
+    const coin = a === 'insCoin';
+    // simulate the denomination a customer would most likely insert next
+    const d = coin ? (rem >= 10 ? 10 : rem >= 5 ? 5 : 1) : (rem >= 500 ? 500 : rem >= 100 ? 100 : rem >= 50 ? 50 : 25);
+    this.insert(d, coin);
+  },
+  insert(d, coin){
+    S.busy = true;
+    const lane = $('#lane'), ghost = $('#ghost'), st = $('#accSt'), acc = $('#acc');
+    ghost.style.display = 'none';
+    lane.insertAdjacentHTML('beforeend', noteHtml(d, coin));
+    const n = lane.lastElementChild;
+    const reject = rejectNext; setReject(false);
+    st.className = 'acc-status'; st.textContent = coin ? 'Reading coin…' : 'Reading note…';
+    if (reject){
+      n.animate([{transform:'translateY(300px)'},{transform:'translateY(40px)', offset:.4},{transform:'translateY(40px)', offset:.6},{transform:'translateY(300px)'}], {duration:1500, easing:'ease-in-out'});
+      later(() => { acc.classList.add('rej'); st.className = 'acc-status bad'; st.textContent = coin ? 'Coin rejected. Please take your coin and try again.' : 'Note rejected. Please take your note and try again.'; }, 700);
+      later(() => {
+        n.remove(); acc.classList.remove('rej'); S.busy = false; S.rejects++;
+        if (S.inserted < total()) $('#ghost').style.display = '';
+        if (S.rejects >= 3){
+          S.rejects = 0;
+          modal({icon:'warn', tone:'warn', title:'Cash Not Accepted', text:'Please follow the instructions on the screen when inserting cash.',
+            html:`<ul class="disc"><li>${ic('cash')}<span>Insert one note at a time, flat and face up.</span></li><li>${ic('info')}<span>Make sure the note is not folded, torn or wet.</span></li></ul>`,
+            actions:[{label:'OK, Try Again', primary:true, fn:() => {}}]});
+        }
+      }, 1550);
+      return;
+    }
+    n.animate([{transform:'translateY(300px)'},{transform:'translateY(40px)', offset:.45},{transform:'translateY(40px)', offset:.6},{transform:'translateY(-170px)'}], {duration:1300, easing:'ease-in-out', fill:'forwards'});
+    later(() => {
+      n.remove(); const prev = S.inserted; S.inserted += d; S.notes.push((coin ? 'c' : 'n') + d); S.busy = false;
+      this.refresh(true, prev);
+    }, 1300);
+  },
+  onBack(){
+    if (!S.inserted) return true;
+    if (S.service === 'bill'){
+      modal({icon:'cash', title:`You have inserted ${fmt(S.inserted)}`, text:`Would you like to pay ${fmt(S.inserted)} towards your bill now? The full outstanding must still be paid by ${DUE}.`,
+        actions:[{label:'Keep Inserting', fn:() => {}}, {label:`Pay ${fmt(S.inserted)}`, primary:true, fn:() => { S.amount = S.inserted; go('summary'); }}]});
+    } else {
+      modal({icon:'ticket', tone:'warn', title:'Cancel Transaction?', text:`You have inserted ${fmt(S.inserted)}, which is less than the price of the selected service. If you cancel, the service will not be activated and a voucher for ${fmt(S.inserted)} will be issued.`,
+        actions:[{label:'Keep Inserting', fn:() => {}}, {label:'Cancel & Get Voucher', primary:true, fn:() => makeVoucher('partial', S.inserted)}]});
+    }
+    return false;
+  },
+  next(){ go('summary'); }
+};
+
+/* ---------- Payment summary ---------- */
+screens.summary = {
+  name:'Payment summary', crumb:'pay',
+  render(){
+    const c = ID_CFG[S.service], rows = [];
+    rows.push(['Service', SERVICES[S.service].t + (custLabel() ? ` · ${custLabel()}` : '')]);
+    rows.push([c.label, fmtId(S.service, S.id)]);
+    if (S.service === 'bill') rows.push(['Outstanding Balance', fmt(OUTSTANDING)]);
+    else rows.push([S.service === 'topup' ? 'Top-up' : 'Product', pname(S.product)]);
+    rows.push(['Payment Method', {cash:'Cash', card:'Card', eboo:'Eboo Wallet'}[S.method]]);
+    if (S.method === 'cash') rows.push(['Cash Inserted', fmt(S.inserted)]);
+    const partial = S.service === 'bill' && S.amount < OUTSTANDING;
+    return `<div class="content">${titleBlock('Payment Summary','An overview of your payment details.')}
+      <div class="card">${rows.map(([k, v], i) => `<div class="row" style="animation-delay:${i * 60}ms"><span>${k}</span><b>${v}</b></div>`).join('')}
+        <div class="row total" style="animation-delay:${rows.length * 60}ms"><span>Total Cost</span><b>${fmt(total())}</b></div></div>
+      ${partial ? `<div class="note-box">${ic('warn')}<span>This is a partial payment. To avoid service restrictions, please pay the full outstanding amount by ${DUE}.</span></div>` : ''}
+    </div>`;
+  },
+  foot(){ return {next:{cash:'Submit Payment', card:'Pay by Card', eboo:'Pay with Eboo'}[S.method]}; },
+  next(){
+    if (S.method === 'cash'){ S.paid = true; return processing(); }
+    go(S.method === 'card' ? 'card' : 'eboo');
+  }
+};
+
+/* ---------- Card payment on POS terminal ---------- */
+screens.card = {
+  name:'Card payment (POS)', crumb:'pay',
+  render(){
+    const keys = ['1','2','3','4','5','6','7','8','9','*','0','#'];
+    return `<div class="content">${titleBlock('Card Payment', '<span id="cSub">Tap, insert or swipe your card on the terminal below the screen.</span>')}
+      <div class="cash-total" style="margin-top:24px"><small>Total amount</small><b>${fmt(total())}</b></div>
+      <div class="pos-stage" id="posStage">
+        <div class="pos"><div class="pos-hump"><i></i></div>
+          <div class="pos-body"><div class="pos-nfcmark">${ic('nfc')}</div>
+            <div class="pos-scr" id="posScr"></div>
+            <div class="pos-keys" id="posKeys">${keys.map(k => `<i>${k}</i>`).join('')}</div>
+            <div class="pos-fn" id="posFn"><i class="r">✕</i><i class="y">‹</i><i class="g">✓</i></div>
+            <div class="pos-slot"></div></div></div>
+        <div class="waves" id="waves"><i></i><i></i><i></i></div>
+        <div class="bankcard idle" id="bcard">${GLOBE('cw')}<div class="bt">DEBIT</div><div class="chipc"></div>${ic('nfc','wv')}<div class="num">•••• 4821</div></div>
+        <div class="finger" id="finger"></div>
+      </div>
+      <div class="card-status" id="cSt"></div>
+      <button class="btn btn-primary sim" id="simTap" data-act="tap">${ic('nfc')} Simulate Card Tap</button>
+      <div class="tmo">Terminal timeout in <b id="tmo">2:00</b> · Card number and PIN are entered on the terminal only</div>
+    </div>`;
+  },
+  foot(){ return {back:'Cancel'}; },
+  scr(html, cls=''){ const el = $('#posScr'); el.className = 'pos-scr ' + cls; el.innerHTML = html; },
+  status(html, cls=''){ const el = $('#cSt'); el.className = 'card-status ' + cls; el.innerHTML = html; },
+  mount(){
+    this.phase = 'tap';
+    let left = 120;
+    every(() => {
+      if (this.phase === 'done') return;
+      // the timeout scenario runs the 120-second terminal timeout ~12x faster
+      left = Math.max(0, left - (SC.card === 'timeout' ? 12 : 1));
+      $('#tmo').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      if (left === 0){ this.phase = 'done'; clearT(); cardFail('timeout'); }
+    }, 1000);
+    this.scr(`<div class="pm">TOTAL</div><div class="pa">${fmt(total())}</div><div class="pm2">${ic('nfc')} Tap · Insert · Swipe</div>`);
+    this.status(`${ic('nfc')} Tap your card on the terminal`);
+  },
+  act(a){
+    if (a !== 'tap' || this.phase !== 'tap') return;
+    if (SC.card === 'timeout'){ toast('The card terminal is not responding'); return; }
+    this.phase = 'reading';
+    $('#simTap').disabled = true;
+    const card = $('#bcard'), waves = $('#waves');
+    card.classList.remove('idle');
+    card.animate([
+      {transform:'translate(0,0) rotate(8deg)'},
+      {transform:'translate(-294px,-24px) rotate(-3deg)', offset:.32},
+      {transform:'translate(-294px,-16px) rotate(-3deg)', offset:.72},
+      {transform:'translate(140px,70px) rotate(12deg)', opacity:0}], {duration:2300, easing:'ease-in-out', fill:'forwards'});
+    later(() => { waves.classList.add('on'); this.scr(`<div class="ps"></div><div class="pm">READING CARD</div>`); this.status(`${SPIN} Reading card…`); }, 700);
+    later(() => { waves.classList.add('off'); this.scr(`${ic('checkc','big')}<div class="pm">CARD READ</div>`, 'ok'); this.status(`${ic('checkc')} Card read`, 'ok'); }, 1700);
+    later(() => this.pin(), 2600);
+  },
+  pin(){
+    this.phase = 'pin';
+    $('#simTap').hidden = true;
+    $('#cSub').textContent = 'Card read. Please enter your 4-digit PIN on the terminal.';
+    this.status(`${ic('lock')} Enter your 4-digit PIN on the terminal`);
+    this.scr(`<div class="pm">ENTER PIN</div><div class="dots"><i></i><i></i><i></i><i></i></div><div class="pm2">Press ✓ to confirm</div>`);
+    const keys = [...document.querySelectorAll('#posKeys i')], fn = [...document.querySelectorAll('#posFn i')], finger = $('#finger'), stage = $('#posStage');
+    const moveTo = el => {
+      const sr = stage.getBoundingClientRect(), k = sr.width / stage.offsetWidth, r = el.getBoundingClientRect();
+      finger.style.transform = `translate(${(r.left - sr.left + r.width / 2) / k - 28}px, ${(r.top - sr.top + r.height / 2) / k - 28}px)`;
+    };
+    const press = el => { el.classList.add('hit'); finger.classList.add('press'); setTimeout(() => { el.classList.remove('hit'); finger.classList.remove('press'); }, 200); };
+    finger.classList.add('on');
+    const cancel = SC.card === 'cancelled', seq = [3, 7, 0, 8].slice(0, cancel ? 2 : 4);
+    let t = 350;
+    seq.forEach((ki, i) => {
+      later(() => moveTo(keys[ki]), t);
+      later(() => { press(keys[ki]); const d = document.querySelectorAll('#posScr .dots i')[i]; d && d.classList.add('f'); }, t + 420);
+      t += 700;
+    });
+    const last = cancel ? fn[0] : fn[2];
+    later(() => moveTo(last), t);
+    later(() => {
+      press(last);
+      if (cancel){ this.phase = 'done'; this.scr(`${ic('xc','big')}<div class="pm">CANCELLED</div>`, 'bad'); this.status(`${ic('xc')} Payment cancelled on the terminal`, 'bad'); }
+    }, t + 420);
+    later(() => { finger.classList.remove('on'); cancel ? cardFail('cancelled') : this.process(); }, t + 1000);
+  },
+  process(){
+    this.phase = 'proc';
+    this.status(`${SPIN} Processing payment… please do not remove your card`);
+    this.scr(`<div class="ps"></div><div class="pm">PROCESSING</div><div class="pm2">Do not remove card</div>`);
+    later(() => {
+      this.phase = 'done';
+      if (SC.card === 'declined'){
+        this.scr(`${ic('xc','big')}<div class="pm">DECLINED</div>`, 'bad'); this.status(`${ic('xc')} Payment declined`, 'bad');
+        later(() => cardFail('declined'), 1000);
+      } else {
+        this.scr(`${ic('checkc','big')}<div class="pm">APPROVED</div><div class="pm2">Please remove card</div>`, 'ok'); this.status(`${ic('checkc')} Payment successful`, 'ok');
+        S.paid = true; later(processing, 1400);
+      }
+    }, 2400);
+  },
+  onBack(){ backTo('method'); return false; }
+};
+function cardFail(kind){
+  const cfg = {
+    declined:{icon:'xc', tone:'bad', title:'Payment Declined', text:'Your card was declined. Please try again or choose another payment method.',
+      actions:[{label:'Change Method', fn:() => backTo('method')}, {label:'Try Again', primary:true, fn:() => replace('card')}]},
+    cancelled:{icon:'xc', tone:'warn', title:'Payment Cancelled', text:'The payment was cancelled on the card terminal. No money has been taken.',
+      actions:[{label:'End Transaction', fn:goHome}, {label:'Change Method', primary:true, fn:() => backTo('method')}]},
+    timeout:{icon:'hourglass', tone:'bad', title:'Payment Unavailable', text:`The card terminal did not respond within 120 seconds. Please try again or choose another payment method. For help, call customer service on ${SUPPORT}.`,
+      actions:[{label:'End Transaction', fn:goHome}, {label:'Change Method', primary:true, fn:() => backTo('method')}]},
+  }[kind];
+  modal({...cfg, close:false});
+}
+
+/* ---------- Eboo wallet: QR → phone scan → processing → success, or retry once then cancel ---------- */
+screens.eboo = {
+  name:'Eboo wallet payment', crumb:'pay',
+  render(){
+    const tries = S.ebooTries || 0;
+    return `<div class="content">${titleBlock('Pay with Eboo Wallet', '<span id="eSub">Scan the QR code with the Eboo app on your phone.</span>')}
+      <div class="cash-total" style="margin-top:20px"><small>Total amount</small><b>${fmt(total())}</b></div>
+      <div class="eb-stage" id="ebStage">
+        <div class="eboo-qr" id="ebQr">${qrSvg(4242 + tries, 29)}<div class="badge">eboo</div><div class="eb-res ok">${ic('checkc')}</div><div class="eb-res no">${ic('xc')}</div></div>
+        <div class="phone" id="phone"><div class="ph-notch"></div><div class="ph-scr" id="phScr"></div></div>
+        <div class="finger" id="ebFinger"></div>
+      </div>
+      <div class="card-status" id="eSt">${ic('qr')} Waiting for you to scan the QR code</div>
+      <button class="btn btn-primary sim" id="simScan" data-act="scan">${ic('phone')} Simulate Phone Scan</button>
+      <div class="tmo" id="eMeta">Attempt ${tries + 1} of 2 · QR code expires in <b id="eTmo">2:00</b></div>
+    </div>`;
+  },
+  foot(){ return {back:'Cancel'}; },
+  status(html, cls=''){ const el = $('#eSt'); el.className = 'card-status ' + cls; el.innerHTML = html; },
+  phone(html, cls=''){ const el = $('#phScr'); el.className = 'ph-scr ' + cls; el.innerHTML = html; },
+  mount(){
+    this.phase = 'wait'; let left = 120;
+    every(() => { if (this.phase !== 'wait') return; left = Math.max(0, left - 1); $('#eTmo').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`; }, 1000);
+  },
+  act(a){
+    if (a !== 'scan' || this.phase !== 'wait') return;
+    this.phase = 'scan'; $('#simScan').hidden = true;
+    const phone = $('#phone'), finger = $('#ebFinger');
+    this.phone(`<div class="vf"><div class="vf-qr">${qrSvg(4242 + (S.ebooTries || 0), 29)}</div><i class="vf-line"></i></div><div class="vf-t">Scan to pay</div>`, 'cam');
+    phone.classList.add('in');
+    this.status(`${ic('phone')} Scanning QR code…`);
+    later(() => {
+      this.phone(`<div class="eb-app"><div class="eb-h">eboo</div><small>Pay to</small><b>Cable &amp; Wireless</b><div class="eb-amt">${fmt(total())}</div><div class="eb-pay" id="ebPay">Pay</div></div>`);
+      this.status(`${ic('lock')} Confirm the payment in the Eboo app`);
+    }, 1700);
+    later(() => {
+      const st = $('#ebStage'), sr = st.getBoundingClientRect(), k = sr.width / st.offsetWidth, r = $('#ebPay').getBoundingClientRect();
+      finger.classList.add('on');
+      finger.style.transform = `translate(${(r.left - sr.left + r.width / 2) / k - 28}px, ${(r.top - sr.top + r.height / 2) / k - 28}px)`;
+    }, 2500);
+    later(() => { finger.classList.add('press'); $('#ebPay').classList.add('hit'); }, 3100);
+    later(() => { finger.classList.remove('on', 'press'); this.phone(`<div class="eb-app"><div class="ps"></div><b>Payment sent</b><small>Waiting for confirmation…</small></div>`); }, 3400);
+    later(() => { phone.classList.remove('in'); this.process(); }, 4400);
+  },
+  process(){
+    this.phase = 'proc';
+    $('#eSub').textContent = 'Please wait while we confirm your payment with Eboo.';
+    this.status(`${SPIN} Processing payment… <span class="eb-poll" id="ePoll"></span>`);
+    let n = 0;
+    every(() => { n++; const p = $('#ePoll'); if (p) p.textContent = `(status check ${n}: WAIT_PAY)`; }, 700);
+    later(() => {
+      clearT();
+      S.ebooTries = (S.ebooTries || 0) + 1;
+      const ok = SC.ebooRes === 'success' || (SC.ebooRes === 'once' && S.ebooTries >= 2);
+      this.phase = 'done';
+      if (ok){
+        $('#ebQr').classList.add('done'); this.status(`${ic('checkc')} Payment successful`, 'ok'); $('#eMeta').textContent = 'Status: COMPLETED';
+        S.paid = true; later(processing, 1300);
+      } else {
+        $('#ebQr').classList.add('fail'); this.status(`${ic('xc')} Payment failed`, 'bad'); $('#eMeta').textContent = 'Status: DECLINED';
+        later(ebooFail, 900);
+      }
+    }, 3000);
+  },
+  onBack(){ backTo('method'); return false; }
+};
+function ebooFail(){
+  if (S.ebooTries < 2){
+    modal({icon:'xc', tone:'bad', title:'Payment Failed', text:'Your Eboo payment could not be completed. No money has been taken. Do you want to try again?', close:false,
+      actions:[{label:'Cancel Transaction', fn:goHome}, {label:'Try Again', primary:true, fn:() => replace('eboo')}]});
+    return;
+  }
+  let n = 5;
+  modal({icon:'xc', tone:'bad', title:'Transaction Cancelled', text:'The Eboo payment failed twice, so this transaction has been cancelled. No money has been taken.', close:false,
+    html:`<div class="count" id="ecnt">Returning to home in 00:05</div>`, actions:[{label:'Return to Home', primary:true, fn:goHome}]});
+  mevery(() => { n--; const c = $('#ecnt'); if (c) c.textContent = `Returning to home in 00:0${Math.max(n, 0)}`; if (n <= 0) goHome(); }, 1000);
+}
+
+/* ---------- Processing (fulfilment) ---------- */
+function processing(){
+  S.txn = rid('TXN', 10);
+  const steps = S.service === 'bill'
+    ? ['Confirming your payment…', 'Posting payment to your account…', 'Confirming transaction…']
+    : S.service === 'topup'
+    ? ['Confirming your payment…', 'Adding credit to your number…', 'Confirming transaction…']
+    : ['Confirming your payment…', 'Activating your service…', 'Confirming transaction…'];
+  modal({close:false, html:`<div class="spinner"></div><h2>Processing</h2><p>Please wait while we complete your request.<br>Do not leave the kiosk.</p><div class="steps" id="steps">${steps[0]}</div>`});
+  let i = 0;
+  mevery(() => { i = Math.min(i + 1, steps.length - 1); const s = $('#steps'); if (s) s.textContent = steps[i]; }, 1100);
+  mlater(() => {
+    if (SC.fulfil === 'fail') makeVoucher('fulfil', total());
+    else { S.receiptFor = 'payment'; go('success'); }
+  }, 3600);
+}
+function makeVoucher(reason, amount){
+  S.voucher = {reason, amount, id:rid('VCH-', 8), txn:S.txn || rid('TXN', 10)};
+  S.receiptFor = 'voucher';
+  go('voucher');
+}
+
+/* ---------- Success / receipt choice ---------- */
+const receiptCards = () => `<div class="rcards">${[['email','mail','Email Receipt'],['sms','sms','SMS Receipt'],['print','print','Print Receipt']].map(([v, i, t], k) =>
+  `<button class="rcard" data-act="rc" data-v="${v}" style="animation-delay:${.9 + k * .1}s">${GLOBE('wm')}<span class="ib">${ic(i)}</span>${t}</button>`).join('')}</div>`;
+function pickReceipt(v){
+  if (v === 'print' && SC.printer === 'off') return modal({icon:'print', tone:'warn', title:'Printer Unavailable',
+    text:'The receipt printer is out of paper. Please choose an Email or SMS receipt instead.', actions:[{label:'Choose Another Option', primary:true, fn:() => {}}]});
+  S.receipt = v; H = []; go(v === 'email' ? 'email' : v === 'sms' ? 'smsEntry' : 'printing'); }
+
+screens.success = {
+  name:'Success · receipt choice', crumb:'done',
+  render(){
+    const what = S.service === 'bill' ? 'Your payment has been posted to your account.' : S.service === 'topup' ? 'Credit has been added to your number.' : 'Your service has been activated.';
+    return `<div class="content full"><div class="okwrap"><svg class="okmark" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54"/><path d="M36 62l16 16 32-34"/></svg></div>
+      <div class="big-t">Success!</div>
+      <div class="big-s">${what} Your payment has been processed successfully. <b style="color:#000">How would you like your receipt?</b></div>
+      <div class="txn"><span>Amount <b>${fmt(total())}</b></span><span>Transaction ID <b>${S.txn}</b></span></div>
+      ${receiptCards()}</div>`;
+  },
+  act(a, el){ if (a === 'rc') pickReceipt(el.dataset.v); }
+};
+
+screens.voucher = {
+  name:'Failed transaction voucher', crumb:'done',
+  render(){
+    const v = S.voucher;
+    const msg = v.reason === 'fulfil'
+      ? `Dear customer, this service is currently unavailable. We have generated a voucher of equal value. This voucher can be redeemed at Customer Service. Please call ${SUPPORT} for further details.`
+      : `The amount inserted was less than the price of the selected service, so the service was not activated. We have generated a voucher for the amount inserted. It can be redeemed at Customer Service.`;
+    return `<div class="content full">
+      <div style="display:flex;gap:36px;align-items:center"><div class="err-ic">${ic(v.reason === 'fulfil' ? 'wifioff' : 'ticket')}</div>
+        ${titleBlock(v.reason === 'fulfil' ? 'Service Unavailable' : 'Transaction Cancelled', '')}</div>
+      <div class="t-s" style="margin-top:30px;font-size:32px">${msg}</div>
+      <div class="vticket"><div class="vh"><span>${ic('ticket')}</span><span>C&amp;W SERVICE VOUCHER</span></div>
+        <div class="va">${fmt(v.amount)}</div>
+        <div class="vg"><div><small>Voucher ID</small><b>${v.id}</b></div><div><small>Transaction ID</small><b>${v.txn}</b></div>
+          <div><small>${ID_CFG[S.service].label}</small><b>${fmtId(S.service, S.id)}</b></div><div><small>Kiosk Reference ID</small><b>${KIOSK_REF}</b></div></div></div>
+      <div class="t-h" style="font-size:36px;margin-top:50px">How would you like your voucher receipt?</div>
+      ${receiptCards().replace('margin-top:70px', '')}</div>`;
+  },
+  mount(root){ root.querySelector('.vh svg').style.cssText = 'width:40px;height:40px'; root.querySelector('.rcards').style.marginTop = '30px'; root.querySelectorAll('.rcard').forEach(r => { r.style.height = '240px'; r.style.animationDelay = '.3s'; }); },
+  act(a, el){ if (a === 'rc') pickReceipt(el.dataset.v); }
+};
+
+/* ---------- Email / SMS receipt entry ---------- */
+screens.email = {
+  name:'Email receipt', crumb:'done',
+  render(){
+    return `<div class="content">${titleBlock(S.receiptFor === 'voucher' ? 'Email Voucher Receipt' : 'Email Receipt', 'Please enter the email address you would like to receive your receipt on.')}
+      <div class="field focus email" id="fld"><span id="fval"></span></div>
+      <div class="vline" id="vline"></div>
+      ${keyboard(true)}</div>`;
+  },
+  foot(){ return {next:'Send Receipt', disabled:true}; },
+  mount(){ this.update(); },
+  valid(){ return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(S.email); },
+  update(){
+    $('#fval').innerHTML = (S.email || '<span class="ph">name@example.com</span>') + '<span class="caret"></span>';
+    const v = $('#vline'), ok = this.valid();
+    v.className = 'vline' + (ok ? ' ok' : ''); v.innerHTML = ok ? `${ic('checkc')} Email address looks good` : S.email ? 'Enter a complete email address' : '';
+    setNext(ok, ok);
+  },
+  act(a, el){
+    if (a !== 'kb') return;
+    const k = el.dataset.k;
+    if (k === 'del') S.email = S.email.slice(0, -1); else if (k === 'clr') S.email = ''; else if (S.email.length < 40) S.email += k;
+    this.update();
+  },
+  next(){ go('sent'); }
+};
+screens.smsEntry = {
+  name:'SMS receipt', crumb:'done',
+  render(){
+    if (!S.smsTouched && (S.service === 'mobile' || S.service === 'topup')) S.sms = S.id;
+    return `<div class="content">${titleBlock(S.receiptFor === 'voucher' ? 'SMS Voucher Receipt' : 'SMS Receipt', 'Please enter the service number you would like to receive your receipt on.')}
+      <div class="field focus" id="fld"><span id="fval"></span></div>
+      <div class="vline" id="vline"></div>
+      ${instr(['Receipts are sent by SMS to C&W mobile numbers.','Your number has been filled in where available. You can change it.'])}
+      ${keypad()}</div>`;
+  },
+  foot(){ return {next:'Send Receipt', disabled:true}; },
+  mount(){ this.update(); },
+  update(){
+    $('#fval').innerHTML = (S.sms ? fmtId('sms', S.sms) : '<span class="ph">e.g. 251 2345</span>') + '<span class="caret"></span>';
+    const ok = S.sms.length === 7, v = $('#vline');
+    v.className = 'vline' + (ok ? ' ok' : ''); v.innerHTML = ok ? `${ic('checkc')} Receipt will be sent to ${fmtId('sms', S.sms)}` : S.sms ? `${S.sms.length} of 7 digits` : '';
+    setNext(ok, ok);
+  },
+  act(a, el){
+    if (a !== 'key') return;
+    const k = el.dataset.k; S.smsTouched = true;
+    if (k === 'del') S.sms = S.sms.slice(0, -1); else if (k === 'clr') S.sms = ''; else if (S.sms.length < 7) S.sms += k;
+    this.update();
+  },
+  next(){ go('sent'); }
+};
+screens.sent = {
+  name:'Receipt sent', crumb:'done', transient:true,
+  render(){
+    const to = S.receipt === 'email' ? S.email : fmtId('sms', S.sms);
+    return `<div class="content full"><div class="sent-ic">${ic(S.receipt === 'email' ? 'send' : 'sms')}<span class="okc" style="color:var(--ok)">${ic('checkc')}</span></div>
+      <div class="big-t">Thank You!</div>
+      <div class="big-s">Your ${S.receiptFor === 'voucher' ? 'voucher ' : ''}receipt has been sent to<br><b style="color:#000">${to}</b></div></div>`;
+  },
+  mount(root){ root.querySelector('.okc svg').style.cssText = 'width:120px;height:120px'; later(feedback, 2800); }
+};
+
+/* ---------- Printing ---------- */
+function receiptHtml(){
+  const d = new Date(), dt = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) + ' ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+  const c = ID_CFG[S.service], v = S.voucher;
+  const rows = [['Date', dt], ['Kiosk', KIOSK_REF], ['Txn ID', S.txn || (v && v.txn)], [c.label, fmtId(S.service, S.id)], ['Service', SERVICES[S.service].t]];
+  if (S.product) rows.push(['Product', pname(S.product)]);
+  rows.push(['Paid by', {cash:'Cash', card:'Card', eboo:'Eboo'}[S.method] || '-']);
+  const head = S.receiptFor === 'voucher' ? 'SERVICE VOUCHER' : 'PAYMENT RECEIPT';
+  const amt = S.receiptFor === 'voucher' ? v.amount : total();
+  return `<svg class="pl" viewBox="410 295 660 111"><use href="#cwlogo"/></svg>
+    <div class="pc"><b>${head}</b></div><hr>
+    ${rows.map(([k, val]) => `<div class="pr"><span>${k}</span><span>${val}</span></div>`).join('')}
+    ${S.receiptFor === 'voucher' ? `<div class="pr"><span>Voucher ID</span><span>${v.id}</span></div>` : ''}
+    <hr><div class="pr" style="font-size:24px"><b>${S.receiptFor === 'voucher' ? 'VALUE' : 'TOTAL'}</b><b>${fmt(amt)}</b></div><hr>
+    <div class="pc">${S.receiptFor === 'voucher' ? 'Redeem at any C&amp;W<br>Customer Service counter' : 'Thank you for choosing<br>Cable &amp; Wireless'}</div>
+    <div class="bc"></div>`;
+}
+screens.printing = {
+  name:'Receipt printing', crumb:'done', transient:true,
+  render(){
+    return `<div class="content full">${titleBlock('<span id="pT">Your Receipt is Printing</span>', '<span id="pS">Please wait while your receipt is printed.</span>', 'center')}
+      <div class="printer"><div class="pr-body"><span class="pr-label">RECEIPT</span><div class="pr-slot"></div><div class="pr-led"></div></div>
+        <div class="pr-out"><div class="paper feed" id="paper">${receiptHtml()}</div></div></div>
+      <div class="collect" id="collect">${ic('down')} Take your receipt from the printer slot</div></div>`;
+  },
+  mount(){
+    later(() => {
+      $('#paper').classList.remove('feed'); $('#paper').classList.add('done');
+      $('#pT').textContent = 'Thank You!'; $('#pS').textContent = 'Please collect your receipt.';
+      $('#collect').classList.add('on');
+    }, 3700);
+    later(feedback, 7000);
+  }
+};
+
+/* ---------- Feedback ---------- */
+function feedback(){
+  let pick = -1;
+  modal({title:'Feedback!', text:'Please rate your experience with us.',
+    html:`<div class="faces">${[0,1,2,3,4].map(i => `<button class="face" data-act="face" data-v="${i}">${face(i)}</button>`).join('')}</div>
+      <div class="face-lbl"><span>Very unsatisfied</span><span>Very satisfied</span></div>`,
+    actions:[{label:'Submit Feedback', primary:true, id:'fbSubmit', disabled:true, fn:() => feedbackDone()}],
+    onClose:goHome});
+  M.face = v => { pick = v; modalEl.querySelectorAll('.face').forEach((f, i) => f.classList.toggle('sel', i === v)); $('#fbSubmit').disabled = false; };
+}
+function feedbackDone(){
+  let n = 5;
+  modal({icon:'checkc', tone:'ok', title:'Feedback Submitted!', text:'Thank you for your valuable feedback!',
+    html:`<div class="count" id="cnt">Returning to home in 00:05</div>`,
+    actions:[{label:'Return to Home', primary:true, fn:goHome}], onClose:goHome});
+  mevery(() => { n--; const c = $('#cnt'); if (c) c.textContent = `Returning to home in 00:0${Math.max(n, 0)}`; if (n <= 0) goHome(); }, 1000);
+}
+
+/* =========================================================
+   Cancel, inactivity
+   ========================================================= */
+function confirmHome(){
+  if (S.paid || S.voucher) return goHome();
+  if (S.inserted && !S.paid && screens.cashInsert.onBack) return screens.cashInsert.onBack();
+  modal({icon:'home', title:'Cancel Transaction?', text:'Your progress will be lost and you will return to the welcome screen.',
+    actions:[{label:'Continue Transaction', fn:() => {}}, {label:'Yes, Cancel', primary:true, fn:goHome}]});
+}
+let idleT;
+function idleReset(){ clearTimeout(idleT); if (cur !== 'splash') idleT = setTimeout(idlePrompt, 120000); }
+function idlePrompt(){
+  if (cur === 'splash') return;
+  let n = 20;
+  modal({icon:'clock', tone:'warn', title:'Are You Still There?', text:'Your session will end soon due to inactivity.',
+    html:`<div class="count" id="icnt">Ending session in 00:${n}</div>`,
+    actions:[{label:'End Session', fn:goHome}, {label:"I'm Still Here", primary:true, fn:() => idleReset()}]});
+  mevery(() => { n--; const c = $('#icnt'); if (c) c.textContent = `Ending session in 00:${String(Math.max(n, 0)).padStart(2, '0')}`; if (n <= 0) goHome(); }, 1000);
+}
+
+/* =========================================================
+   Events
+   ========================================================= */
+kiosk.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  idleReset();
+  if (!el || el.disabled) return;
+  const a = el.dataset.act;
+  if (el.closest('#modal')){
+    if (a === 'mclose'){ const oc = M.onClose; closeModal(); oc && oc(); return; }
+    if (a === 'm'){ const act = M.actions[+el.dataset.i]; closeModal(); act && act.fn && act.fn(); return; }
+    if (a === 'face'){ M.face && M.face(+el.dataset.v); return; }
+    return;
+  }
+  if (a === 'back') return back();
+  if (a === 'next'){ const sc = screens[cur]; return sc.next && sc.next(); }
+  if (a === 'home') return confirmHome();
+  const sc = screens[cur]; sc.act && sc.act(a, el);
+});
+
+/* presenter panel */
+const ERR_DEFAULTS = {svc:'online', lookup:'ok', cashHw:'on', fulfil:'success', printer:'ok', card:'approved', ebooRes:'success'};
+function syncSegs(){
+  document.querySelectorAll('.seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === SC[seg.dataset.k])));
+  let n = 0;
+  document.querySelectorAll('#panel .err-row').forEach(row => {
+    const k = row.querySelector('.seg').dataset.k, on = SC[k] !== ERR_DEFAULTS[k];
+    row.classList.toggle('active', on);
+  });
+  for (const k in ERR_DEFAULTS) if (SC[k] !== ERR_DEFAULTS[k]) n++;
+  $('#errBadge').textContent = n || '';
+  $('#panelToggle').textContent = n ? `Presenter panel (P) · ${n} error${n > 1 ? 's' : ''} on` : 'Presenter panel (P)';
+}
+document.querySelectorAll('.seg').forEach(seg => {
+  const k = seg.dataset.k;
+  seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SC[k] = b.dataset.v; syncSegs(); if (k === 'display') fit(); });
+});
+document.querySelectorAll('#panel .ptabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#panel .ptabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('#panel .ptab').forEach(t => t.classList.toggle('on', t.dataset.tab === b.dataset.tab));
+}));
+$('#errReset').addEventListener('click', () => { Object.assign(SC, ERR_DEFAULTS); syncSegs(); });
+syncSegs();
+document.querySelectorAll('[data-jump]').forEach(b => b.addEventListener('click', () => {
+  const j = b.dataset.jump;
+  if (j === 'splash') return goHome();
+  resetState(); S.service = j; H = ['splash', 'lang', 'service'];
+  cur = j === 'home' ? 'menu' : 'idEntry'; render('fade');
+}));
+function setReject(v){ rejectNext = v; const b = $('#hwReject'); b.classList.toggle('armed', v); b.textContent = v ? 'Next note will be rejected…' : 'Reject the next cash note'; }
+$('#hwReject').addEventListener('click', () => setReject(!rejectNext));
+$('#hwIdle').addEventListener('click', idlePrompt);
+/* =========================================================
+   Comments — Figma-style pins. Stored in this browser and embedded
+   into a downloaded copy so they can travel with the file.
+   ========================================================= */
+const CM_KEY = 'cws-kiosk-comments', CM_NAME = 'cws-kiosk-commenter';
+const CM = {list:[], placing:false, open:null, showResolved:false};
+const esc = t => String(t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : new Date(t).toLocaleDateString('en-GB', {day:'numeric', month:'short'}); };
+function cmLoad(){
+  let emb = [], loc = [];
+  try { emb = JSON.parse(document.getElementById('cmtData').textContent || '[]'); } catch (e) {}
+  try { loc = JSON.parse(localStorage.getItem(CM_KEY) || '[]'); } catch (e) {}
+  cmMerge([...emb, ...loc], false);
+}
+function cmMerge(items, save=true){
+  const map = new Map(CM.list.map(c => [c.id, c]));
+  items.forEach(c => { if (c && c.id) map.set(c.id, c); });
+  CM.list = [...map.values()].sort((a, b) => a.time - b.time);
+  save ? cmSave() : cmRender();
+}
+function cmSave(){ if (!REMOTE) try { localStorage.setItem(CM_KEY, JSON.stringify(CM.list)); } catch (e) {} cmRender(); }
+// Deployed with the /api/comments endpoint (e.g. on Vercel): comments are shared through the server instead of this browser.
+let REMOTE = false;
+async function cmApi(body){
+  try {
+    const r = await fetch('/api/comments', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'Server error');
+    CM.list = data; cmRender();
+  } catch (err) { toast(`Comment not saved: ${err.message}`); }
+}
+async function cmPull(){
+  if (document.hidden) return;
+  try { const r = await fetch('/api/comments', {cache:'no-store'}); if (r.ok){ CM.list = await r.json(); cmRender(); } } catch (e) {}
+}
+function cmName(){ return ($('#cmtName').value || '').trim(); }
+function cmRender(){
+  const vis = CM.list.filter(c => CM.showResolved || !c.resolved);
+  $('#pins').innerHTML = vis.filter(c => c.screen === cur).map(c =>
+    `<button class="pin ${c.resolved ? 'res' : ''} ${CM.open === c.id ? 'on' : ''}" data-cid="${c.id}" style="left:${c.x}px;top:${c.y}px">${CM.list.indexOf(c) + 1}</button>`).join('');
+  const open = CM.list.filter(c => !c.resolved).length;
+  $('#cmtCount').textContent = open || '';
+  const groups = {};
+  vis.forEach(c => (groups[c.screenName] = groups[c.screenName] || []).push(c));
+  $('#cmtList').innerHTML = vis.length ? Object.keys(groups).map(g => `<div class="cp-grp">${esc(g)}</div>` + groups[g].map(c =>
+    `<button class="cp-item ${c.resolved ? 'res' : ''}" data-cid="${c.id}"><span class="pn">${CM.list.indexOf(c) + 1}</span><span class="pb">
+      <span class="pa">${esc(c.author)}<span class="pt">${ago(c.time)}${c.resolved ? ' · resolved' : ''}</span></span>
+      <div class="px">${esc(c.text)}</div>${c.replies.length ? `<div class="pr">${c.replies.length} repl${c.replies.length > 1 ? 'ies' : 'y'}</div>` : ''}${c.screen !== cur ? `<div class="pr" style="color:#8A96A1">Go to “${esc(c.screenName)}” to see the pin</div>` : ''}</span></button>`).join('')).join('')
+    : `<div class="cp-empty">No comments yet.<br>Click “Add a comment”, then click on the screen.</div>`;
+}
+// On the published link, comments use claude.ai's shared comment store, so everyone with access sees them.
+const HOSTED = !!(window.claude && typeof window.claude.use === 'function');
+let SHARED_COMMENTS = null;
+function cmSetPlacing(on){
+  CM.placing = on;
+  document.body.classList.toggle('placing', on);
+  $('#cmtAdd').classList.toggle('on', on);
+  $('#cmtAdd').textContent = on ? 'Click on the screen… (Esc to cancel)' : '＋ Add a comment';
+  if (HOSTED){
+    $('#cmtToggle').classList.toggle('on', on);
+    $('#cmtToggle').lastChild.textContent = on ? 'Click the spot to comment on · Esc to cancel' : 'Comment';
+  }
+}
+function cmPagePos(x, y){ const r = kiosk.getBoundingClientRect(), s = r.width / 1080; return [r.left + x * s, r.top + y * s]; }
+function cmShowPop(x, y, html){
+  const pop = $('#cmtPop'); pop.innerHTML = html; pop.hidden = false;
+  const [px, py] = cmPagePos(x, y), w = 300, h = pop.offsetHeight;
+  let left = px + 16, top = py - 30;
+  if (left + w > innerWidth - 10) left = px - w - 40;
+  pop.style.left = Math.max(10, left) + 'px';
+  pop.style.top = Math.max(10, Math.min(top, innerHeight - h - 10)) + 'px';
+}
+function cmClosePop(){ $('#cmtPop').hidden = true; CM.open = null; const n = $('#pins .pin.new'); n && n.remove(); cmRender(); }
+function cmCompose(x, y){
+  CM.open = null; cmRender();
+  $('#pins').insertAdjacentHTML('beforeend', `<button class="pin new" style="left:${x}px;top:${y}px">+</button>`);
+  cmShowPop(x, y, `<div class="ct">New comment <small>${esc(screens[cur].name || cur)}</small></div>
+    ${cmName() ? '' : '<input id="cpName" placeholder="Your name" maxlength="40">'}
+    <textarea id="cpText" placeholder="Leave a comment…"></textarea>
+    <div class="cp-row"><button data-c="cancel">Cancel</button><button data-c="post" class="pri">Post</button></div>`);
+  CM.draft = {x, y};
+  ($('#cpName') || $('#cpText')).focus();
+}
+function cmOpen(id){
+  const c = CM.list.find(k => k.id === id); if (!c) return;
+  CM.open = id; cmRender();
+  const msg = m => `<div class="msg"><b>${esc(m.author)}</b><small>${ago(m.time)}</small><p>${esc(m.text)}</p></div>`;
+  cmShowPop(c.x, c.y, `<div class="ct"><span>#${CM.list.indexOf(c) + 1} · ${esc(c.screenName)}</span><button data-c="close" style="color:#8A96A1">✕</button></div>
+    <div class="thread">${msg(c)}${c.replies.map(msg).join('')}</div>
+    ${cmName() ? '' : '<input id="cpName" placeholder="Your name" maxlength="40">'}
+    <textarea id="cpText" placeholder="Reply…" style="min-height:50px"></textarea>
+    <div class="cp-row" style="justify-content:space-between;align-items:center"><span class="acts"><button data-c="resolve">${c.resolved ? 'Reopen' : 'Resolve'}</button><button data-c="delete" class="del">Delete</button></span><button data-c="reply" class="pri">Reply</button></div>`);
+}
+$('#cmtPop').addEventListener('click', e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  const a = b.dataset.c, nameIn = $('#cpName');
+  if (nameIn && nameIn.value.trim()){ $('#cmtName').value = nameIn.value.trim(); try { localStorage.setItem(CM_NAME, $('#cmtName').value); } catch (err) {} }
+  const text = ($('#cpText') && $('#cpText').value.trim()) || '';
+  const author = cmName() || 'Guest';
+  if (a === 'cancel' || a === 'close') return cmClosePop();
+  if (a === 'post'){
+    if (!text) return $('#cpText').focus();
+    const item = {id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), screen:cur, screenName:screens[cur].name || cur,
+      x:CM.draft.x, y:CM.draft.y, author, text, time:Date.now(), replies:[], resolved:false};
+    CM.list.push(item);
+    $('#cmtPop').hidden = true; cmSave();
+    if (REMOTE) cmApi({action:'create', id:item.id, comment:item});
+    return;
+  }
+  const c = CM.list.find(k => k.id === CM.open); if (!c) return;
+  if (a === 'reply'){
+    if (!text) return $('#cpText').focus();
+    c.replies.push({author, text, time:Date.now()}); cmSave();
+    if (REMOTE) cmApi({action:'reply', id:c.id, author, text});
+    return cmOpen(c.id);
+  }
+  if (a === 'resolve'){ c.resolved = !c.resolved; cmSave(); if (REMOTE) cmApi({action:'resolve', id:c.id, resolved:c.resolved}); return cmClosePop(); }
+  if (a === 'delete'){ CM.list = CM.list.filter(k => k !== c); cmSave(); if (REMOTE) cmApi({action:'delete', id:c.id}); return cmClosePop(); }
+});
+// placing a pin: capture clicks on the kiosk before they reach the screen's buttons
+kiosk.addEventListener('click', e => {
+  if (!CM.placing) return;
+  e.stopPropagation(); e.preventDefault();
+  const r = kiosk.getBoundingClientRect(), s = r.width / 1080;
+  cmSetPlacing(false);
+  if (HOSTED){
+    if (!SHARED_COMMENTS) return toast('Use the comment button in the top bar to add a comment');
+    return SHARED_COMMENTS.openComposer({element: e.target})
+      .then(res => { if (!res.opened) toast('Finish the comment you already have open first'); })
+      .catch(() => toast('Commenting isn’t available here. Use the comment button in the top bar.'));
+  }
+  cmCompose(Math.round((e.clientX - r.left) / s), Math.round((e.clientY - r.top) / s));
+}, true);
+$('#pins').addEventListener('click', e => { const p = e.target.closest('.pin[data-cid]'); if (p){ e.stopPropagation(); cmOpen(p.dataset.cid); } });
+$('#cmtList').addEventListener('click', e => { const it = e.target.closest('.cp-item'); if (!it) return; const c = CM.list.find(k => k.id === it.dataset.cid); if (c && c.screen === cur) cmOpen(c.id); });
+function cmTogglePanel(show){ $('#cmtPanel').classList.toggle('hidden', !show); $('#cmtToggle').classList.toggle('on', show); if (!show){ cmSetPlacing(false); cmClosePop(); } fit(); }
+$('#cmtToggle').addEventListener('click', () => HOSTED ? cmSetPlacing(!CM.placing) : cmTogglePanel($('#cmtPanel').classList.contains('hidden')));
+if (HOSTED){
+  $('#cmtToggle').lastChild.textContent = 'Comment';
+  $('#cmtCount').remove();
+  window.claude.use('comments').then(c => { SHARED_COMMENTS = c; }).catch(() => {});
+}
+$('#cmtClose').addEventListener('click', () => cmTogglePanel(false));
+$('#cmtAdd').addEventListener('click', () => { cmClosePop(); cmSetPlacing(!CM.placing); });
+$('#cmtShowResolved').addEventListener('change', e => { CM.showResolved = e.target.checked; cmRender(); });
+$('#cmtName').addEventListener('change', e => { try { localStorage.setItem(CM_NAME, e.target.value.trim()); } catch (err) {} });
+try { $('#cmtName').value = localStorage.getItem(CM_NAME) || ''; } catch (e) {}
+$('#cmtSave').addEventListener('click', () => {
+  const data = JSON.stringify(CM.list).replace(/</g, '\\u003c');
+  const html = ORIGINAL_HTML.replace(/(<script id="cmtData" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + data + b);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+  a.download = `CWS-Kiosk-Prototype-comments-${new Date().toISOString().slice(0, 10)}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+});
+$('#cmtImport').addEventListener('click', () => $('#cmtFile').click());
+$('#cmtFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const txt = await f.text(); let items = [];
+  try {
+    if (/\.json$/i.test(f.name)) items = JSON.parse(txt);
+    else { const m = txt.match(/<script id="cmtData" type="application\/json">([\s\S]*?)<\/script>/); items = m ? JSON.parse(m[1] || '[]') : []; }
+  } catch (err) { items = []; }
+  const before = CM.list.length; cmMerge(items); e.target.value = '';
+  toast(`Imported ${CM.list.length - before} new comment(s)`);
+});
+cmLoad();
+if (!HOSTED && /^https?:$/.test(location.protocol)){
+  fetch('/api/comments', {cache:'no-store'})
+    .then(r => r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : null)
+    .then(list => {
+      if (!Array.isArray(list)) return;
+      REMOTE = true; CM.list = list; cmRender();
+      $('.cp-foot').innerHTML = '<div class="cp-note">Comments are shared: everyone who opens this link sees them, and new ones appear within a few seconds.</div>';
+      setInterval(cmPull, 8000);
+    })
+    .catch(() => {});
+}
+
+const panel = $('#panel'), toggle = $('#panelToggle');
+function setPanel(show){ panel.classList.toggle('hidden', !show); toggle.hidden = show; fit(); }
+toggle.addEventListener('click', () => setPanel(true));
+$('#panelHide').addEventListener('click', () => setPanel(false));
+// Laptop keyboard drives the on-screen keypad/keyboard: digits & letters type, Backspace deletes, Esc clears, Enter continues
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, textarea')) return;
+  if (e.key === 'Escape' && (CM.placing || !$('#cmtPop').hidden)){ cmSetPlacing(false); cmClosePop(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (modalEl.classList.contains('open')){
+    if (e.key === 'Enter'){ const b = modalEl.querySelector('.btn-primary:not([disabled])'); if (b){ e.preventDefault(); b.click(); } }
+    return;
+  }
+  const typing = !!screenEl.querySelector('.kbd'), pad = !!screenEl.querySelector('.keypad');
+  if (e.key === 'Enter'){ const nb = $('#nextBtn'); if (nb && !nb.disabled){ e.preventDefault(); nb.click(); } return; }
+  const k = e.key === 'Backspace' ? 'del' : (e.key === 'Escape' || e.key === 'Delete') ? 'clr' : e.key.length === 1 ? e.key.toLowerCase() : null;
+  if (k && (typing || pad)){
+    const btn = $(`#screen [data-act=${typing ? 'kb' : 'key'}][data-k="${CSS.escape(k)}"]`);
+    if (btn){ e.preventDefault(); btn.classList.add('hit'); setTimeout(() => btn.classList.remove('hit'), 120); btn.click(); return; }
+  }
+  if (typing) return;   // letters are text input here, not shortcuts
+  if (k === 'p') setPanel(panel.classList.contains('hidden'));
+  if (k === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {});
+});
+
+/* the kiosk renders at its true 1080x1920 size; "Fit to window" is only for previewing on a smaller screen */
+function fit(){
+  const fitMode = SC.display === 'fit', PAD = 32;
+  const leftW = fitMode && !$('#cmtPanel').classList.contains('hidden') ? 340 : 0;
+  const rightW = fitMode && !panel.classList.contains('hidden') ? 330 : 0;
+  const availW = innerWidth - leftW - rightW - PAD * 2, availH = innerHeight - PAD * 2;
+  const s = fitMode ? Math.min(availW / 1080, availH / 1920) : 1;
+  kiosk.style.transform = s === 1 ? 'none' : `scale(${s})`;
+  for (const el of [$('#stageArea'), $('#wrap')]){ el.style.width = 1080 * s + 'px'; el.style.height = 1920 * s + 'px'; }
+  // centre the scaled kiosk between the drawers, with a gap above and below and no page scrolling
+  $('#stageArea').style.marginLeft = fitMode ? leftW + PAD + Math.max(0, (availW - 1080 * s) / 2) + 'px' : '0';
+  $('#stageArea').style.marginTop = fitMode ? PAD + Math.max(0, (availH - 1920 * s) / 2) + 'px' : '0';
+  document.body.style.overflow = fitMode ? 'hidden' : 'auto';
+  if (!$('#cmtPop').hidden) cmClosePop();
+}
+window.addEventListener('resize', fit);
+setPanel(innerWidth >= 1080 + 330);
+fit(); render('fade');
+</script>
+</body>
+</html>
